@@ -1,0 +1,1120 @@
+RESEARCH ARTICLE
+Identifying a group of factors predicting
+cognitive impairment among older adults
+Longgang ZhaoID1, Yuan Wang1, Eric Mishio Bawa1, Zichun Meng1, Jingkai Wei1,
+Sarah Newman-Norlund2, Tushar Trivedi3, Hatice Hasturk4, Roger D. Newman-Norlund2,
+Julius Fridriksson2, Anwar T. MerchantID1*
+1 Department of Epidemiology and Biostatistics, Arnold School of Public Health, University of South Carolina,
+Columbia, South Carolina, United States of America, 2 Communication Sciences and Disorders, Arnold
+School of Public Health, University of South Carolina, Columbia, South Carolina, United States of America,
+3 Regional Medical Center Primary Care Stroke, Orangeburg, SC, United States of America, 4 Center for
+Clinical and Translational Research, Forsyth Institute, Boston, MA, United States of America
+* merchant@mailbox.sc.edu
+Abstract
+Background
+Cognitive impairment has multiple risk factors spanning several domains, but few studies
+have evaluated risk factor clusters. We aimed to identify naturally occurring clusters of risk
+factors of poor cognition among middle-aged and older adults and evaluate associations
+between measures of cognition and these risk factor clusters.
+Methods
+We used data from the National Health and Nutrition Examination Survey (NHANES) III
+(training dataset, n = 4074) and the NHANES 2011–2014 (validation dataset, n = 2510).
+Risk factors were selected based on the literature. We used both traditional logistic mod-
+els and support vector machine methods to construct a composite score of risk factor
+clusters. We evaluated associations between the risk score and cognitive performance
+using the logistic model by estimating odds ratios (OR) and 95% confidence intervals
+(CI).
+Results
+Using the training dataset, we developed a composite risk score that predicted undiagnosed
+cognitive decline based on ten selected predictive risk factors including age, waist circum-
+ference, healthy eating index, race, education, income, physical activity, diabetes, hyper-
+cholesterolemia, and annual visit to dentist. The risk score was significantly associated with
+poor cognitive performance both in the training dataset (OR Tertile 3 verse tertile 1 = 8.15, 95%
+CI: 5.36–12.4) and validation dataset (OR Tertile 3 verse tertile 1 = 4.31, 95% CI: 2.62–7.08).
+The area under the receiver operating characteristics curve for the predictive model was
+0.74 and 0.77 for crude model and model adjusted for age, sex, and race.
+PLOS ONE
+PLOS ONE | https://doi.org/10.1371/journal.pone.0301979
+April 11, 2024
+1 / 15
+a1111111111
+a1111111111
+a1111111111
+a1111111111
+a1111111111
+OPEN ACCESS
+Citation: Zhao L, Wang Y, Bawa EM, Meng Z, Wei
+J, Newman-Norlund S, et al. (2024) Identifying a
+group of factors predicting cognitive impairment
+among older adults. PLoS ONE 19(4): e0301979.
+https://doi.org/10.1371/journal.pone.0301979
+Editor: Zhe He, Florida State University, UNITED
+STATES
+Received: June 20, 2023
+Accepted: March 26, 2024
+Published: April 11, 2024
+Copyright: © 2024 Zhao et al. This is an open
+access article distributed under the terms of the
+Creative Commons Attribution License, which
+permits unrestricted use, distribution, and
+reproduction in any medium, provided the original
+author and source are credited.
+Data Availability Statement: Data are available at
+https://nam02.safelinks.protection.outlook.com/?
+url=https%3A%2F%2Fdoi.org%2F10.7910%
+2FDVN%2FG3M6TQ%2C&data=05%7C02%
+7CMERCHANT%40mailbox.sc.edu%7C0d7e32
+2540d04ee86db308dc06e6acac%7C4b2a4b19
+d135420e8bb2b1cd238998cc%7C0%7C0%
+7C638392835003011143%7CUnknown%7CTW
+FpbGZsb3d8eyJWIjoiMC4wLjAwMDAiLCJQIjoiV
+2luMzIiLCJBTiI6Ik1haWwiLCJXVCI6Mn0%3D%
+7C3000%7C%7C%7C&sdata=iN%2FaMh9xHT
+mC4xci%2F4OUswT9%2B2qgtXIo1jIGcAyCAFE%
+3D&reserved=0. DOI:10.7910/DVN/G3M6TQ
+Conclusion
+The model based on selected risk factors may be used to identify high risk individuals with
+cognitive impairment.
+Introduction
+Between 29% and 76% of patients with dementia may remain undiagnosed [1–3] even though
+the Centers for Medicare and Medicaid Services recommends the assessment of impaired cog-
+nition for older individuals at annual wellness visits. As routine screening for impaired cogni-
+tion is not recommended, evaluation or diagnosis of impaired cognition results from
+complaints by the individual or caregiver or provider suspicion [4].
+Increasing age and the ε4 allele of the apolipoprotein E gene are the strongest predictors of
+impaired cognition [5], but several other factors are correlated with impaired cognition
+including blood pressure, diabetes, smoking, alcohol use, diet, physical activity, serum choles-
+terol [6, 7], and oral health status [8]. With the exception of age and the ε4 allele of the apolipo-
+protein E gene, these factors are potentially modifiable to prevent or delay cognitive decline.
+Blood pressure, blood sugar, serum cholesterol smoking, alcohol use, diet, and physical activ-
+ity, were part of the Brain Care Score which predicted incident dementia, suggesting that
+improving the Brain Risk Score could reduce dementia risk [9]. While information on these
+risk factors is often present in medical records, a formal way of including them in the assess-
+ment of impaired cognition is challenging. We included information on oral health status in
+addition to other risk factors, including those mentioned above, because oral health status is
+correlated with poor cognition but infrequently included in risk scores. Moreover, this infor-
+mation is typically present in electronic health records and was available in the dataset that we
+were planning to use.
+The goal of this study was to create and validate a score predicting the prevalence of
+impaired cognition in older adults from information on known risk factors using statistical
+and machine learning methods. A validated algorithm embedded into electronic health rec-
+ords could use pertinent information available in health records to calculate the likelihood of
+impaired cognition of their patient using all available data and cue the health care provider.
+Formal screening of individuals identified following this impaired cognition score could
+potentially increase the positive predictive value of existing screening tools such as the Mini-
+Mental State Examination (MMSE).
+Methods
+Data source
+We used a subset of cross-sectional data from the Third National Health and Nutrition Exami-
+nation Survey (NHANES III) which had measures of cognition for participants 40 years and
+older [10] and its commonly known risk factors as the data source to develop a impaired cog-
+nition score predicting impaired cognition. We called this the training dataset. The validation
+dataset consisted of cross-sectional information from participants of continuous NHANES
+surveys 2011 through 2014 who were 60 years and older with data on cognitive assessment and
+covariates [11]. This validation dataset was used to confirm the ability of the impaired cogni-
+tion score developed in the training dataset to predict impaired cognition, and estimate its sen-
+sitivity and specificity.
+PLOS ONE
+Identifying cognitive impairment
+PLOS ONE | https://doi.org/10.1371/journal.pone.0301979
+April 11, 2024
+2 / 15
+Dataset: Identifying a group of factors predicting
+cognitive impairment among older adults.
+Funding: Dr. Merchant was founded by National
+Institute on Aging (1R21AG070449-01).
+Competing interests: NO authors have competing
+interests.
+Abbreviations: AD, Alzheimer’s Disease; AF, the
+Animal Fluency test; AUC, area under the curve;
+BMI, body mass index; CERAD, the Consortium to
+Establish a Registry for Alzheimer’s Disease; CI,
+confidence intervals; CRP, C-reactive protein; DBP,
+diastolic blood pressure; DSST, the Digit Symbol
+Substitution Test; HDL, high density lipoprotein
+cholesterol; HEI, the healthy eating index; NHANES,
+the Third National Health and Nutrition Examination
+Survey; OR, odds ratios; SBP, systolic blood
+pressure; WBC, white blood cell count.
+There were 7,869 participants in the training dataset (NHANES III) and 19,931 participants
+in the validation dataset (NHANES 2011–2014). In the training dataset, 3795 participants were
+excluded because of missing values in covariates or cognition variables. Similarly, 16,259 par-
+ticipants in the validation dataset were excluded for no valid measurement for cognition and
+962 for missing values in covariates. After exclusions, 4074 and 2510 participants remained in
+the training and validation datasets respectively (S1 Fig in S1 Appendix). NHANES III partici-
+pants consented to participate in the study voluntarily. The data used in these analyses was dei-
+dentified and classified as exempt from review by the Institutional Review Board of the
+University of South Carolina.
+Exposure assessment
+Training dataset.
+Predictive factors consisted of sociodemographic factors which
+included age, sex (male and female), race (white, black, and other), educational level (<12 years,
+12 years completed education), poverty income ratio (PIR) divided into three groups (1.3,
+1.3<PIR3.5, >3.5) (a value <1 indicates that household income is below poverty level, a value
+of 1.3 means that household income is 30% above poverty level and so on. The higher this num-
+ber the wealthier the household), lifestyle factors consisting of smoking status (non-smoker,
+ever smoker, and current smoker), drinking status (non-drinker and drinker), healthy eating
+index (HEI) (higher number indicating healthier diet), health related factors including, body
+mass index (BMI) (normal: 24.9 kg/m2; overweight: 25 to 29.9 kg/m2, and obese: 30 kg/
+m2), waist circumference (in cm), physical activity (derived based on a structured physical activ-
+ity questionnaire, and further classified as three groups: sedentary, moderate, vigorous), systolic
+blood pressure (SBP), diastolic blood pressure (DBP), white blood cell count (WBC), C-reactive
+protein (CRP), total cholesterol, high density lipoprotein cholesterol (HDL), triglycerides, dis-
+ease prevalence including diabetes, hypertension, cardiovascular diseases, cancer, and depres-
+sion, oral health information consisting of periodontal disease (none or mild versus moderate
+or severe) [12, 13], and annual dentist visits, and social connectedness measures consisting of
+frequency of talking to friends and family, visiting friends and family, attending church services
+and club meetings. Details about these variables are available at the CDC website [11, 12].
+Validation dataset.
+Covariates measured included age in years, sex (male and female),
+race (white, black, and other), education ((<12 years, 12 years completed education), PIR
+(1.3, 1.3<PIR3.5, >3.5), smoking (non-smoker, ever smoker, and current smoker), drink-
+ing status (non-drinker and drinker), HEI score, BMI (normal: 24.9 kg/m2; overweight: 25
+to 29.9 kg/m2, and obese: 30 kg/m2), waist circumference, physical activity (sedentary,
+moderate, vigorous), SBP, DBP, WBC, total cholesterol, HDL, triglycerides, history of diabetes,
+hypertension, cardiovascular diseases, cancer, and depression, periodontal diseases, and
+annual dentist visits. The detailed collection methods for these covariates were similar to the
+training dataset.
+Cognition assessment
+Training dataset.
+Cognition was measured using a version of the Mini-Mental State
+Examination (MMSE), which was administered through a home interview and at the Mobile
+Examination Center (MEC) [14–16]. It consisted of six orientation, six recall, and five atten-
+tion related questions. Each correct response was assigned 1 point and an incorrect response
+received a score of 0. The outcome used in these analyses was the total score, which was
+obtained by summing the points assigned to the responses and ranged from 0 to 17 with higher
+scores indicating better cognitive function. The six orientation items asked about the day of
+the week, the date, and participant’s complete address including street, city or town, state, and
+PLOS ONE
+Identifying cognitive impairment
+PLOS ONE | https://doi.org/10.1371/journal.pone.0301979
+April 11, 2024
+3 / 15
+ZIP code (adult questionnaire). To evaluate recall, the interviewer told the participant the
+names of three items (apple, table, and penny) and asked them to repeat the names. Each par-
+ticipant was given up to six tries to learn the words. If they correctly recalled the items at any
+of the six tries, the response was considered to be correct. This exercise was repeated after
+assessing attention to achieve a maximum of 6 points for recall. To evaluate attention, the
+interviewer asked the participant to serially subtract 3 from 20 and repeat this exercise for up
+to five times. For example, they were asked to subtract $3 from $20, and $3 from $17, and so
+on and assigned one point for each correct answer. Based on the prevalence of cognitive
+impairment among US older adults [17], we defined cognitive impairment as the lowest 10%
+of the distribution (total score = 10) of the MMSE score.
+Validation dataset.
+Cognition was measured using three tests consisting of the Consor-
+tium to Establish a Registry for Alzheimer’s Disease (CERAD), the Animal Fluency (AF) test,
+and the Digit Symbol Substitution Test (DSST) [18]. The CERAD model assesses both imme-
+diate and delayed memory of new verbal information [19], the AF test assesses the verbal flu-
+ency domain of executive function [20], and DSST assesses attention and processing speed. A
+score, which is the sum of the total number of correct symbols and number pairs within the
+time frame was assigned. The assessment was done at the MEC. Individuals in the lowest 10%
+of the score distribution were categorized as cognitively impaired. Details are provided in S1
+Appendix. We also used the percentile 20% in the sensitivity analyses.
+Statistical analysis
+We developed models to predict cognitive impairment in NHANES III data (training dataset)
+using logistic regression and machine learning (support vector machine). We used machine
+learning methods to supplement the logistic regression models because they do not depend on
+the same modeling assumption. Comparing the results from the machine learning would
+increase our confidence that the final logistic regression models included all the important var-
+iables. We further used those models to predict cognitive impairment in the NHANES 2011
+through 2014 (validation dataset). We chose the validation dataset because it had most of the
+variables that were measured in the training dataset.
+Training logistic regression model.
+The binary outcome for cognitive impairment was
+related to the predictors (cognition-related risk factors) in forward, backward, and stepwise
+models, from which the most predictive model was selected. We derived the beta coefficients
+for each variable from the most predictive model to construct the impaired cognition score.
+Training support-vector machine (SVM) learning models. We next obtained predictive
+models in the developmental dataset by relating the outcome (cognitive impairment) with the pre-
+dictor variables using SVM. We used the 5-fold cross validation method with 30 replications to get
+the best estimation of the model. We ranked the contribution of each feature and compared the top
+15 features from the SVM based on the development and validation datasets (Fig 1). Finally, we con-
+structed the impaired cognition score based on the logistic model using the following formula:
+Impaired cognition score
+¼ 0:057  Age   0:017  Waist circumference   0:012  HEI þ 0:660  Other races
+þ 0:416  Black race   0:710  Higher education   0:875  Higher income   0:325
+ Middle income   0:172  Moderately active þ 0:197  Vigorously active þ 0:324
+ Diabetes   0:422  Hypercholesterolemia   0:542  Annual visit to dentist
+Model validation.
+To evaluate the performance of the prediction models obtained in the
+training dataset to external data, we used the final prediction model (logistic model) obtained
+PLOS ONE
+Identifying cognitive impairment
+PLOS ONE | https://doi.org/10.1371/journal.pone.0301979
+April 11, 2024
+4 / 15
+from NHANES III data to predict impaired cognition in the continuous NHANES 2011
+through 2014 data. To do that we calculated a impaired cognition score for each participant
+using the final logistic regression models obtained earlier and categorized the impaired cogni-
+tion score into tertiles (low risk, moderate risk, and high risk). We estimated the odds ratios
+(OR) and the corresponding 95% confidence intervals (CI) using logistic regression to evaluate
+the association between the impaired cognition score in tertiles and the outcome (impaired
+cognition) adjusting for age, sex, and race (Table 3). We then calculated the area under the
+curve (AUC) graphs to assess the prediction performance (Fig 1).
+Data management and statistical analyses were conducted using SAS 9.4 (SAS Institute,
+Cary, NC). The SVM model was performed in R program (Version 3.5.0, R core team, Vienna,
+Austria) with the “e1071” package. The sample weights provided by NHANES III were used in
+all procedures. The threshold for statistical significance was 0.05. The manuscript is compliant
+with the STROBE statement. The University of South Carolina IRB determined the analyses to
+be not Human Subjects research.
+Ethical considerations
+The NHANES study was approved by National Center for Health Statistics (NCHS) Ethics Review
+Board (Protocol #2011–17) and documented consent was obtained from all participants.
+Results
+Study population characteristics
+We documented 411 participants with low cognitive performance. Table 1 shows the charac-
+teristics of participants in the training dataset from NHANES III. Participants with low
+Fig 1. Top 15 covariates for ranked contributions of covariates with poor cognition performance from support
+vector machine methods in both the development and validation datasets; BMI, body mass index; CRP, C-reactive
+protein; CVD, cardiovascular diseases; DBP, diastolic blood pressure; HDP, HDL cholesterol; HEI, healthy eating
+index; SBP, systolic blood pressure; TCP, total cholesterol; TGP, triglycerides; WBC, white blood cell; WC, waist
+circumference.
+https://doi.org/10.1371/journal.pone.0301979.g001
+PLOS ONE
+Identifying cognitive impairment
+PLOS ONE | https://doi.org/10.1371/journal.pone.0301979
+April 11, 2024
+5 / 15
+cognitive performance compared with their peers with high cognitive performance were older
+(p<0.001), more likely to be African American, had higher systolic blood pressure (p = 0.001),
+lower HEI scores (p<0.001), fewer social connection by phone (p<0.001); these individuals
+were less likely to have visited a dentist in the past year (p<0.001) and more likely to have peri-
+odontal disease (p = 0.01).
+In the validation dataset (NHANES 2011–2014), participants with low cognitive perfor-
+mance compared with their peers with good cognitive performance were older (p<0.001),
+more likely to be African American (<0.001), have higher systolic blood pressure (p<0.001),
+lower HEI score (p = 0.001), and visited the dentist less frequently in the last year (p<0.001)
+(S1 Table in S1 Appendix).
+Associations between predictors and cognition performance
+Table 2 describes associations between risk factors and cognition performance in the training
+dataset after adjusting for all covariates. The odds of low cognitive performance were greater
+with higher age but lower healthy eating index score, fewer social connections by phone, and
+fewer social connections in attending church activities. Among the participants of the training
+dataset, the odds of low cognition performance 1.30 times higher for every 5-year increase in
+age (aOR = 1.30, 95% CI = 1.19–1.41), and 1.58 times higher for African Americans compared
+Table 3. Impaired cognition score for cognition performance based on the development and prediction datasets.
+Tertiles of impaired cognition scores *
+Tertile 1
+Tertile 2
+Tertile 3
+NHANES III (training dataset)
+Impaired cognition score based on logistic model
+Cases/Controls †
+27/1186
+91/1123
+217/996
+Model 1, OR (95% CI) ‡
+1.00 (reference)
+3.56 (2.30–5.51)
+9.57 (6.36–14.4)
+Model 2, OR (95% CI) §
+1.00 (reference)
+3.18 (2.05–4.94)
+8.15 (5.36–12.4)
+Impaired cognition score based on SVM model
+Cases/Controls
+25/1188
+82/1132
+228/985
+Model 1, OR (95% CI)
+1.00 (reference)
+3.44 (2.18–5.43)
+11.0 (7.22–16.8)
+Model 2, OR (95% CI)
+1.00 (reference)
+3.18 (2.01–5.04)
+8.77 (5.57–13.8)
+NHANES 2011–2014 (validation dataset)
+Impaired cognition score based on logistic model
+Cases/Controls
+25/811
+47/790
+113/724
+Model 1, OR (95% CI)
+1.00 (reference)
+1.93 (1.18–3.17)
+5.06 (3.25–7.90)
+Model 2, OR (95% CI)
+1.00 (reference)
+1.66 (0.99–2.76)
+4.31 (2.62–7.08)
+Impaired cognition score based on SVM model
+Cases/Controls
+21/815
+44/793
+120/717
+Model 1, OR (95% CI)
+1.00 (reference)
+2.15 (1.27–3.65)
+6.50 (4.04–10.4)
+Model 2, OR (95% CI)
+1.00 (reference)
+1.59 (0.92–2.74)
+3.95 (2.34–6.66)
+NHANES, National Health and Nutrition Examination Survey; SVM, support vector machine; OR, odds ratio; CI,
+confidence interval.
+* The tertiles was based on the distribution of all participants.
+† Poor cognition performance was defined as the lowest 10% of the distribution of the MMSE score (NHANES III)
+or a composite score based on the Consortium to Establish a Registry for Alzheimer’s Disease (CERAD), the Animal
+Fluency (AF), and the Digit Symbol Substitution Test (DSST) tests (NHANES 2011–2014).
+‡ Model 1 is the crude model without any adjustments.
+§ Model 2 adjusted for age, sex, and race.
+https://doi.org/10.1371/journal.pone.0301979.t003
+PLOS ONE
+Identifying cognitive impairment
+PLOS ONE | https://doi.org/10.1371/journal.pone.0301979
+April 11, 2024
+6 / 15
+Table 1. Characteristics of the training dataset using participants from NHANES III.
+Variable
+Normal cognitive performance
+Low cognitive performance *
+P value
+N
+3663
+411
+Age, mean, year
+71.1
+75.0
+< 0.001
+Body mass index, mean, kg/m2
+27.2
+26.1
+< 0.001
+Waist circumference, mean, cm
+97.6
+95.5
+0.002
+Healthy eating index, mean
+67.0
+61.6
+< 0.001
+Systolic blood pressure, mean, mmHg
+140.7
+144.0
+0.001
+Diastolic blood pressure, mean, mmHg
+74.5
+73.5
+0.07
+White blood cells, mean, ×109/L
+7.2
+7.0
+0.10
+C-reactive protein, mean, mg/dL
+0.6
+0.6
+0.69
+Total cholesterol, mean, mg/dL
+222.5
+219.3
+0.17
+HDL cholesterol, mean, mg/dL
+51.2
+52.3
+0.19
+Triglycerides, mean, mg/dL
+164.1
+153.8
+0.07
+Social connection by phone, mean
+10.7
+7.7
+< 0.001
+Social connection with friends/relatives, mean
+125.2
+120.1
+0.57
+Social connection with neighbors, mean
+83.2
+97.1
+0.09
+Social connection attending church activities, mean
+49.1
+34.3
+0.09
+Social connection of meetings in club, mean
+13.6
+7.7
+0.006
+Age group, %
+< 0.001
+40-<65
+25.5
+13.4
+65
+74.5
+86.6
+Race, %
+< 0.001
+Whites
+80.2
+69.6
+Black
+17.9
+27.5
+Others
+1.9
+2.9
+Sex, %
+0.92
+Male
+47.2
+47.4
+Female
+52.8
+52.6
+Education, %
+< 0.001
+<12 years
+51.5
+80.0
+12 years
+48.5
+20.0
+Income, %
+< 0.001
+PIR1.3
+25.3
+44.0
+1.3<PIR3.5
+54.0
+50.4
+PIR>3.5
+20.7
+5.6
+Smoking status, %
+0.06
+Never smoker
+47.2
+50.9
+Ever smoker
+37.6
+31.9
+Current smoker
+15.2
+17.3
+Ever drinkers, %
+34.5
+26.0
+< 0.001
+Body mass index, %
+< 0.001
+Normal weight
+33.9
+45.5
+Overweight
+41.3
+34.5
+Obesity
+24.8
+20.0
+Physical activity, %
+< 0.001
+Sedentary
+33.8
+28.5
+Moderately active
+41.0
+28.7
+Vigorously active
+25.2
+42.8
+(Continued)
+PLOS ONE
+Identifying cognitive impairment
+PLOS ONE | https://doi.org/10.1371/journal.pone.0301979
+April 11, 2024
+7 / 15
+with their White peers (aOR = 1.58, 95% CI = 1.15–2.17). The odds of low cognitive perfor-
+mance were 6% lower for a 5-unit increase in the healthy eating index score (aOR = 0.94, 95%
+CI = 0.89–0.98); 2% lower with more frequent daily social connection by phone (aOR = 0.98,
+95% CI = 0.97–0.99); 13% lower with more frequent weekly participation in church activities
+(aOR = 0.87, 95% CI = 0.76–0.99), and 41% lower among those who visited a dentist in the last
+year.
+Construction and prediction of the overall impaired cognition score
+The top 15 contributors to poor cognitive performance in both the training dataset and valida-
+tion datasets are shown in Fig 1. The highest contributor in the validation dataset was educa-
+tion. In the training dataset, CRP was the highest contributor. Waist circumference and
+physical activity had the same rank in both datasets. Age was part of the top three contributors
+in either dataset. Visiting the dentist was ranked tenth in the validation dataset and eleventh in
+the training dataset, while healthy eating index and race were among the top ten contributors
+in both the training and validation datasets.
+Table 3 describes the impaired cognition scores for cognitive performance in the training
+and the validation dataset using the logistic and SVM models. In both datasets, there were
+higher odds of poor cognition for those in tertiles 2 and 3 when compared to tertile 1. These
+findings were similar in both the logistic and SVM models in both datasets. In the training
+dataset, the odds of poor cognition among participants in tertile 3 was 8.15 times the odds
+among participants in tertile 1 (aOR = 8.15, 95% CI = 5.36–12.4) and 8.77 times that of the
+odds among participants in tertile 1 (aOR = 8.77, 95% CI = 5.57–13.8) for the logistic and
+SVM models respectively. In the validation dataset, the odds of poor cognition among those in
+tertile 3 was 4.31 times the odds of participants in tertile 1 (aOR = 4.31, 95% CI = 2.62–7.08)
+and 3.95 times that of the odds among participants in tertile 1 (aOR = 3.95, 95% CI = 2.34–
+6.66) for the logistic and SVM models respectively. Using 20% as the cutoff of impaired cogni-
+tive performance in the validation dataset yielded similar results (S2 Table in S1 Appendix).
+The logistic and SVM models had similar discriminatory abilities in predicting poor cogni-
+tion using the validation dataset. The area under the curve (AUC) for the crude model in was
+0.74 and 0.70 for the logistic model and SVM model, respectively. The AUC for the age, sex
+and race-adjusted model in the logistic and SVM models was 0.77 and 0.76 respectively, and
+Table 1. (Continued)
+Variable
+Normal cognitive performance
+Low cognitive performance *
+P value
+History of diabetes, yes, %
+15.2
+20.0
+0.01
+History of cardiovascular diseases, yes, %
+15.8
+20.4
+0.01
+History of hypertension, yes, %
+48.2
+46.0
+0.39
+History of cancer, yes, %
+18.2
+14.6
+0.07
+History of hyperlipidemia, yes, %
+29.6
+16.5
+< 0.001
+Cholesterol-lowering drugs, yes, %
+5.6
+2.9
+0.02
+Anxiety, yes, %
+0.7
+0.7
+0.85
+Depression, yes, %
+3.5
+4.4
+0.39
+Annual visit of dentists, yes, %
+36.0
+13.6
+< 0.001
+Periodontal disease, yes, %
+49.0
+42.8
+0.01
+Social connection with clubs, yes, %
+38.2
+23.1
+< 0.001
+SD, standard deviation; PIR, poverty income ratio.
+* Poor cognition performance was defined as the lowest 10% of the distribution of the MMSE score.
+https://doi.org/10.1371/journal.pone.0301979.t001
+PLOS ONE
+Identifying cognitive impairment
+PLOS ONE | https://doi.org/10.1371/journal.pone.0301979
+April 11, 2024
+8 / 15
+Table 2. Associations between risk factors and cognition performance in the training dataset from the NHANES
+III.
+Variable
+Low cognitive performance *
+P value
+Age, per 5 years
+1.30 (1.19–1.41)
+< 0.001
+Body mass index, per 5 unit
+0.95 (0.74–1.23)
+0.70
+Waist circumference, per 5 cm
+0.94 (0.85–1.05)
+0.28
+Healthy eating index, per 5 unit
+0.94 (0.89–0.98)
+0.005
+Systolic blood pressure, per SD
+1.03 (0.97–1.10)
+0.34
+Diastolic blood pressure, per SD
+0.94 (0.82–1.06)
+0.31
+White blood cells, per SD
+0.93 (0.80–1.08)
+0.33
+C-reactive protein, per SD
+0.90 (0.78–1.03)
+0.14
+Total cholesterol, per SD
+0.99 (0.87–1.14)
+0.92
+HDL cholesterol, per SD
+1.01 (0.87–1.17)
+0.91
+Triglycerides, per SD
+1.02 (0.88–1.18)
+0.84
+Social connection by phone, daily
+0.98 (0.97–0.99)
+< 0.001
+Social connection with friends/relatives, weekly
+0.99 (0.95–1.04)
+0.80
+Social connection with neighbors, weekly
+1.02 (0.98–1.06)
+0.45
+Social connection attending church activities, weekly
+0.87 (0.76–0.99)
+0.03
+Social connection of meetings in club, weekly
+1.04 (0.90–1.21)
+0.59
+Race
+Whites
+1.00 (reference)
+Black
+1.58 (1.15–2.17)
+0.005
+Others
+1.92 (0.95–3.85)
+0.07
+Sex
+Male
+1.00 (reference)
+Female
+1.04 (0.75–1.44)
+0.82
+Education
+<12 years
+1.00 (reference)
+12 years
+0.50 (0.37–0.67)
+< 0.001
+Income
+PIR1.3
+1.00 (reference)
+1.3<PIR3.5
+0.73 (0.57–0.95)
+0.02
+PIR>3.5
+0.44 (0.26–0.73)
+0.002
+Smoking status
+Never smoker
+1.00 (reference)
+Ever smoker
+0.82 (0.61–1.10)
+0.19
+Current smoker
+0.81 (0.54–1.20)
+0.29
+Drinking status
+Never drinker
+1.00 (reference)
+Ever drinker
+0.93 (0.69–1.24)
+0.61
+Physical activity
+Sedentary
+1.00 (reference)
+Moderately
+0.86 (0.63–1.16)
+0.31
+Vigorously
+1.22 (0.90–1.66)
+0.20
+History of diabetes
+No
+1.00 (reference)
+Yes
+1.32 (0.96–1.83)
+0.09
+History of cardiovascular diseases
+No
+1.00 (reference)
+(Continued)
+PLOS ONE
+Identifying cognitive impairment
+PLOS ONE | https://doi.org/10.1371/journal.pone.0301979
+April 11, 2024
+9 / 15
+the AUC for the models that adjusted for all covariates in the logistic and SVM methods was
+0.78 and 0.79 respectively (Fig 2).
+Discussion
+We developed a model using statistical and machine learning methods that predicted impaired
+cognition using ten known risk factors and validated it in a replication dataset among free-liv-
+ing older adults. Information on the risk factors in our model is commonly available in elec-
+tronic health records but is not systematically used to predict impaired cognition. The model
+could be embedded in an electronic health record system to predict the likelihood of impaired
+cognition for individuals using information in their respective health records, which could
+assist their health care providers to decide on the next steps. The positive predictive value
+would be increased for all tools used to evaluate impaired cognition by screening individuals
+identified as high-risk using our model, thus facilitating the diagnosis of impaired cognition
+among older adults.
+Although the causes of cognitive impairment are not yet completely understood, evidence
+of associations between individual risk factors and cognitive loss is accumulating. Besides
+Table 2. (Continued)
+Variable
+Low cognitive performance *
+P value
+Yes
+1.20 (0.87–1.65)
+0.26
+History of hypertension
+No
+1.00 (reference)
+Yes
+0.82 (0.63–1.07)
+0.14
+History of cancer
+No
+1.00 (reference)
+Yes
+0.85 (0.60–1.21)
+0.37
+History of hypercholesterolemia
+No
+1.00 (reference)
+Yes
+0.64 (0.46–0.90)
+0.01
+Cholesterol-lowering drugs
+No
+1.00 (reference)
+Yes
+0.96 (0.48–1.95)
+0.92
+Anxiety
+No
+1.00 (reference)
+Yes
+0.88 (0.20–3.96)
+0.87
+Depression
+No
+1.00 (reference)
+Yes
+1.48 (0.81–2.68)
+0.20
+Annual visit of dentists
+No
+1.00 (reference)
+Yes
+0.59 (0.41–0.83)
+0.003
+Periodontal diseases
+None
+1.00 (reference)
+Moderate
+0.99 (0.77–1.27)
+0.96
+SD, standard deviation; PIR, poverty income ratio.
+* Poor cognition performance was defined as the lowest 10% of the distribution of the MMSE score. Data were
+shown as odds ratios (95% confidence intervals).
+https://doi.org/10.1371/journal.pone.0301979.t002
+PLOS ONE
+Identifying cognitive impairment
+PLOS ONE | https://doi.org/10.1371/journal.pone.0301979
+April 11, 2024
+10 / 15
+increasing age, low education level is associated with higher risk of cognition impairment [21],
+Some unhealthy lifestyles, including smoking, lack of physical activity, unhealthy eating are
+potential risk factors [22]. In addition, people with diabetes, obesity, depression, hypertension,
+and hyperlipidemia have an increased risk of developing cognition decline [23]. However, few
+studies focused on a combination of these risk factors. Kivipelto and colleagues developed the
+CAIDE impaired cognition score based on modifiable risk factors that predicted the incidence
+of dementia over 20 years [24]. Combinations of risk factors have been shown to predict
+dementia incidence over time in other prospective studies [5, 25–27]. In contrast, we com-
+bined information on risk factors to predict the prevalence of impaired cognition. Our goal
+was to facilitate case identification at one moment in time rather than predicting dementia risk
+over time. Tolea and colleagues using a modified CAIDE instrument in a cross-sectional analy-
+sis reported an AUC of 0.63 to predict mild cognitive impairment versus no impairment [28].
+In comparison, AUC estimates to assess impaired cognition in our study ranged from 0.70 to
+0.79 in various models.
+The USPTF does not recommend routine screening for cognitive impairment in older
+adults (65 years) [29] due to the insignificant clinical benefit. Screening tools are effective in
+identifying cognitive impairment, do not cause any harm, and but benefits from subsequent
+interventions are modest [30]. Early diagnosis of impaired cognition may nevertheless benefit
+individuals and their caregivers to manage and monitor the condition and plan for the future,
+and health care providers to focus on reversing modifiable risk factors and making appropriate
+treatment plans. Among nationally representative older US adults, 12 potentially modifiable
+risk factors accounted for 41% of dementia cases overall and 46% and 47% of dementia cases
+among African Americans and Hispanics respectively [31]. Another analysis of a nationally
+representative sample of US adults identified 8 modifiable risk factors that contributed to
+35.9% and 30.1% of ADRD cases in men and women respectively, 40% of cases among African
+Americans, and 34% of cases among Hispanics [32]. Additionally, it has been shown that path-
+ologic changes in the brain may precede development of symptoms by several years [33].
+Together these studies suggest that managing risk factors early, particularly in high-risk
+groups, may be beneficial in reducing disease burden. Our model identifies individuals likely
+Fig 2. Performance of the prediction model using both logistic regression and support vector machine methods in the
+validation datasets; (a) logistic model; (b) SVM model. Adjusted model included age, sex, and race. Covariates model
+additionally adjusted for education, history of cardiovascular disease, depression, and white blood cells.
+https://doi.org/10.1371/journal.pone.0301979.g002
+PLOS ONE
+Identifying cognitive impairment
+PLOS ONE | https://doi.org/10.1371/journal.pone.0301979
+April 11, 2024
+11 / 15
+to have impaired cognition which could help health care providers to diagnose impaired
+cognition.
+Our study has several strengths. We applied different methods (traditional logistic regression
+and SVM models) to derive robust and stable models. Though a systematic review found no ben-
+efit in machine learning over logistic regression in clinical prediction [34], machine learning may
+perform better than logistic regression in smaller samples [35], and with high dimension data
+[36]. The reason for using both logistic regression and SVM models was to increase the chances
+that important variables would be included in the final prediction model. Though we used logistic
+regression as the final predictive model, at the outset we did not know which variables would be
+selected by which method. Using both methods to identify risk factor clusters may therefore have
+been an advantage. Additionally, the training and validation datasets were from samples repre-
+sentative of free-living older US adults. However, our study also has some limitations. For exam-
+ple, the predictive properties of our model are in the acceptable range but are not excellent [37].
+One possible reason for this is that the NHANES datasets were not specifically designed for evalu-
+ating cognition. The model could be refined in a dataset with more accurate measures of cogni-
+tion such as more extensive neurocognitive testing, and neuroimaging such as MRI and EEG
+[38]. Another way to strengthen the model is by evaluating a wider range of risk factors such as
+sleep, physical function, speech and hearing abilities, vision, reading history, access to healthcare,
+social interactions, family engagement, and oral health [38–42]. Many of these factors have been
+related with cognition but are not formally used to predict undiagnosed cognitive impairment.
+For example, though poor oral health is associated with worse cognition, oral health information
+is not widely used to predict impaired cognition. Another limitation is that the statistical
+approach used to identify risk factors assumes that the model assumptions are met. For example,
+to identify the initial set of possible predictors we used logistic regression, which assumes that the
+relation between continuous risk factors and the log odds of the outcome are linearly related. A
+violation of this assumption could result in loss of efficiency. To address this concern, we
+repeated the variable selection process using machine learning methods which do not have this
+limitation. The final list of predictors was obtained using information from both logistic regres-
+sion and machine learning methods. Another limitation was that some domains were measured
+differently in the development (NHANES III) and validation datasets (continuous NHANES
+2011–2014). For example, the cognitive score assessed in the validation dataset used newer meth-
+ods. Though we used the same overall criteria to evaluate cognitive impairment (lowest 10% of
+cognition score) in both the development and validation datasets, cognitive assessment in the lat-
+ter dataset was likely more accurate. This could also have reduced the predictive properties of the
+model. Despite these limitations, the approach seems promising for clinical translation. For
+example, based on the predicted probability of cognitive impairment obtained for a particular
+patient from the model, a health care provider could decide whether to test that patient.
+Conclusions
+We developed a model consisting of 10 common risk factors that predicted undiagnosed cog-
+nitive impairment in a representative sample of older US adults. This model could be used to
+identify groups with greater prevalence of cognitive impairment in its current form to aid in
+screening. This model could be enhanced, and its prediction improved by refining it in a richer
+dataset with more accurate and varied outcome measures and a broader range of predictors.
+Supporting information
+S1 Appendix.
+(DOCX)
+PLOS ONE
+Identifying cognitive impairment
+PLOS ONE | https://doi.org/10.1371/journal.pone.0301979
+April 11, 2024
+12 / 15
+Author Contributions
+Conceptualization: Longgang Zhao, Anwar T. Merchant.
+Data curation: Longgang Zhao.
+Formal analysis: Longgang Zhao.
+Funding acquisition: Anwar T. Merchant.
+Methodology: Longgang Zhao, Zichun Meng, Anwar T. Merchant.
+Project administration: Anwar T. Merchant.
+Resources: Anwar T. Merchant.
+Software: Longgang Zhao, Zichun Meng.
+Supervision: Yuan Wang, Anwar T. Merchant.
+Visualization: Longgang Zhao.
+Writing – original draft: Longgang Zhao, Eric Mishio Bawa, Anwar T. Merchant.
+Writing – review & editing: Yuan Wang, Eric Mishio Bawa, Zichun Meng, Jingkai Wei, Sarah
+Newman-Norlund, Tushar Trivedi, Hatice Hasturk, Roger D. Newman-Norlund, Julius
+Fridriksson, Anwar T. Merchant.
+References
+1.
+Chodosh J, Petitti DB, Elliott M, Hays RD, Crooks VC, Reuben DB, et al. Physician recognition of cogni-
+tive impairment: evaluating the need for improvement. J Am Geriatr Soc. 2004; 52(7):1051–9. https://
+doi.org/10.1111/j.1532-5415.2004.52301.x PMID: 15209641.
+2.
+Olafsdottir M, Skoog I, Marcusson J. Detection of dementia in primary care: the Linkoping study.
+Dement Geriatr Cogn Disord. 2000; 11(4):223–9. https://doi.org/10.1159/000017241 PMID: 10867449.
+3.
+Valcour VG, Masaki KH, Curb JD, Blanchette PL. The detection of dementia in the primary care setting.
+Arch Intern Med. 2000; 160(19):2964–8. https://doi.org/10.1001/archinte.160.19.2964 PMID:
+11041904.
+4.
+410.15 Annual wellness visits providing Personalized Prevention Plan Services: Conditions for and limi-
+tations on coverage: National Archives; 2023 [cited 2023 02/11/2023]. Available from: https://www.ecfr.
+gov/current/title-42/chapter-IV/subchapter-B/part-410/subpart-B/section-410.15.
+5.
+Shang X, Zhu Z, Zhang X, Huang Y, Zhang X, Liu J, et al. Association of a wide range of chronic dis-
+eases and apolipoprotein E4 genotype with subsequent risk of dementia in community-dwelling adults:
+A retrospective cohort study. EClinicalMedicine. 2022; 45:101335. Epub 2022/03/19. https://doi.org/10.
+1016/j.eclinm.2022.101335 PMID: 35299656; PubMed Central PMCID: PMC8921546.
+6.
+Ballard C, Gauthier S, Corbett A, Brayne C, Aarsland D, Jones E. Alzheimer’s disease. Lancet. 2011;
+377(9770):1019–31. https://doi.org/10.1016/S0140-6736(10)61349-9 PMID: 21371747.
+7.
+Kuehn BM. In Alzheimer Research, Glucose Metabolism Moves to Center Stage. JAMA. 2020; 323
+(4):297–9. https://doi.org/10.1001/jama.2019.20939 PMID: 31913419.
+8.
+Dominy SS, Lynch C, Ermini F, Benedyk M, Marczyk A, Konradi A, et al. Porphyromonas gingivalis in
+Alzheimer’s disease brains: Evidence for disease causation and treatment with small-molecule inhibi-
+tors. Sci Adv. 2019; 5(1):eaau3333. https://doi.org/10.1126/sciadv.aau3333 PMID: 30746447; PubMed
+Central PMCID: PMC6357742.
+9.
+Singh SD, Oreskovic T, Carr S, Papier K, Conroy M, Senff JR, et al. The predictive validity of a Brain
+Care Score for dementia and stroke: data from the UK Biobank cohort. Front Neurol. 2023;
+14:1291020. Epub 2023/12/18. https://doi.org/10.3389/fneur.2023.1291020 PMID: 38107629; PubMed
+Central PMCID: PMC10725202.
+10.
+NHANES III: Antibodies to Periodontal Pathogens 2008 [updated 2008]. Available from: https://wwwn.
+cdc.gov/nchs/data/nhanes3/30a/spsdeppx.pdf.
+11.
+Centers for Disease Control and Prevention (CDC). National Center for Health Statistics (NCHS).
+National Health and Nutrition Examination Survey Data. Hyattsville, MD: U.S. Department of Health
+and Human Services, Centers for Disease Control and Prevention; 2011–2014 [cited 2022 October 20,
+PLOS ONE
+Identifying cognitive impairment
+PLOS ONE | https://doi.org/10.1371/journal.pone.0301979
+April 11, 2024
+13 / 15
+2022]. Available from: https://wwwn.cdc.gov/nchs/nhanes/continuousnhanes/default.aspx?BeginYear=
+2011.
+12.
+National Health and Nutrition Examination Survey III: Oral Examination Component. Rockville, MD:
+1992 March 1992. Report No.
+13.
+Eke PI, Dye BA, Wei L, Slade GD, Thornton-Evans GO, Borgnakke WS, et al. Update on Prevalence of
+periodontitis in adults in the United States: NHANES 2009 to 2012. J Periodontol. 2015; 86(5):611–22.
+Epub 02/17. https://doi.org/10.1902/jop.2015.140520 PMID: 25688694.
+14.
+Obisesan TO, Gillum RF. Cognitive function, social integration and mortality in a U.S. national cohort
+study of older adults. BMC Geriatr. 2009; 9:33. https://doi.org/10.1186/1471-2318-9-33 PMID:
+19638207; PubMed Central PMCID: PMC2724371.
+15.
+Pfeiffer E. A short portable mental status questionnaire for the assessment of organic brain deficit in
+elderly patients. J Am Geriatr Soc. 1975; 23(10):433–41. https://doi.org/10.1111/j.1532-5415.1975.
+tb00927.x PMID: 1159263.
+16.
+Perkins AJ, Hendrie HC, Callahan CM, Gao S, Unverzagt FW, Xu Y, et al. Association of antioxidants
+with memory in a multiethnic elderly sample using the Third National Health and Nutrition Examination
+Survey. Am J Epidemiol. 1999; 150(1):37–44. https://doi.org/10.1093/oxfordjournals.aje.a009915
+PMID: 10400551.
+17.
+Pantell M, Rehkopf D, Jutte D, Syme SL, Balmes J, Adler N. Social isolation: a predictor of mortality
+comparable to traditional clinical risk factors. Am J Public Health. 2013; 103(11):2056–62. Epub 2013/
+09/14. https://doi.org/10.2105/AJPH.2013.301261 PMID: 24028260; PubMed Central PMCID:
+PMC3871270.
+18.
+National Health and Nutrition Examination Survey, 2011–2012 Data Documentation, Codebook, and
+Frequencies, Cognitive Functioning (CFQ_G). Hyattsville MD: 2017.
+19.
+Morris JC, Heyman A, Mohs RC, Hughes JP, van Belle G, Fillenbaum G, et al. The Consortium to
+Establish a Registry for Alzheimer’s Disease (CERAD). Part I. Clinical and neuropsychological assess-
+ment of Alzheimer’s disease. Neurology. 1989; 39(9):1159–65. https://doi.org/10.1212/wnl.39.9.1159
+PMID: 2771064.
+20.
+Strauss E, Sherman EMS, Spreen O, Spreen O. A compendium of neuropsychological tests: adminis-
+tration, norms, and commentary. 3rd ed. Oxford; New York: Oxford University Press; 2006. xvii, 1216
+p. p.
+21.
+Andrews SJ, Fulton-Howard B, O’Reilly P, Marcora E, Goate AM, collaborators of the Alzheimer’s Dis-
+ease Genetics C. Causal Associations Between Modifiable Risk Factors and the Alzheimer’s Phenome.
+Ann Neurol. 2021; 89(1):54–65. Epub 2020/10/01. https://doi.org/10.1002/ana.25918 PMID: 32996171;
+PubMed Central PMCID: PMC8088901.
+22.
+Zhang XX, Tian Y, Wang ZT, Ma YH, Tan L, Yu JT. The Epidemiology of Alzheimer’s Disease Modifi-
+able Risk Factors and Prevention. J Prev Alzheimers Dis. 2021; 8(3):313–21. Epub 2021/06/09. https://
+doi.org/10.14283/jpad.2021.15 PMID: 34101789.
+23.
+Frisardi V, Solfrizzi V, Seripa D, Capurso C, Santamato A, Sancarlo D, et al. Metabolic-cognitive syn-
+drome: a cross-talk between metabolic syndrome and Alzheimer’s disease. Ageing Res Rev. 2010; 9
+(4):399–417. Epub 2010/05/07. https://doi.org/10.1016/j.arr.2010.04.007 PMID: 20444434.
+24.
+Kivipelto M, Ngandu T, Laatikainen T, Winblad B, Soininen H, Tuomilehto J. Risk score for the predic-
+tion of dementia risk in 20 years among middle aged people: a longitudinal, population-based study.
+The Lancet Neurology. 2006; 5(9):735–41. Epub 2006/08/18. https://doi.org/10.1016/S1474-4422(06)
+70537-3 PMID: 16914401.
+25.
+Exalto LG, Quesenberry CP, Barnes D, Kivipelto M, Biessels GJ, Whitmer RA. Midlife risk score for the
+prediction of dementia four decades later. Alzheimer’s & dementia: the journal of the Alzheimer’s Asso-
+ciation. 2014; 10(5):562–70. Epub 2013/09/17. https://doi.org/10.1016/j.jalz.2013.05.1772 PMID:
+24035147.
+26.
+Ngandu T, Helkala EL, Soininen H, Winblad B, Tuomilehto J, Nissinen A, et al. Alcohol drinking and cog-
+nitive functions: findings from the Cardiovascular Risk Factors Aging and Dementia (CAIDE) Study.
+Dement Geriatr Cogn Disord. 2007; 23(3):140–9. Epub 2006/12/16. https://doi.org/10.1159/000097995
+PMID: 17170526.
+27.
+You J, Zhang YR, Wang HF, Yang M, Feng JF, Yu JT, et al. Development of a novel dementia risk pre-
+diction model in the general population: A large, longitudinal, population-based machine-learning study.
+EClinicalMedicine. 2022; 53:101665. Epub 2022/10/04. https://doi.org/10.1016/j.eclinm.2022.101665
+PMID: 36187723; PubMed Central PMCID: PMC9519470.
+28.
+Tolea MI, Heo J, Chrisphonte S, Galvin JE. A Modified CAIDE Risk Score as a Screening Tool for Cog-
+nitive Impairment in Older Adults. J Alzheimers Dis. 2021; 82(4):1755–68. https://doi.org/10.3233/JAD-
+210269 PMID: 34219721; PubMed Central PMCID: PMC8483620.
+PLOS ONE
+Identifying cognitive impairment
+PLOS ONE | https://doi.org/10.1371/journal.pone.0301979
+April 11, 2024
+14 / 15
+29.
+Force USPST, Owens DK, Davidson KW, Krist AH, Barry MJ, Cabana M, et al. Screening for Cognitive
+Impairment in Older Adults: US Preventive Services Task Force Recommendation Statement. JAMA.
+2020; 323(8):757–63. https://doi.org/10.1001/jama.2020.0435 PMID: 32096858.
+30.
+Patnode CD, Perdue LA, Rossom RC, Rushkin MC, Redmond N, Thomas RG, et al. Screening for Cog-
+nitive Impairment in Older Adults: Updated Evidence Report and Systematic Review for the US Preven-
+tive Services Task Force. JAMA. 2020; 323(8):764–85. https://doi.org/10.1001/jama.2019.22258
+PMID: 32096857.
+31.
+Lee M, Whitsel E, Avery C, Hughes TM, Griswold ME, Sedaghat S, et al. Variation in Population Attrib-
+utable Fraction of Dementia Associated With Potentially Modifiable Risk Factors by Race and Ethnicity
+in the US. JAMA Netw Open. 2022; 5(7):e2219672. https://doi.org/10.1001/jamanetworkopen.2022.
+19672 PMID: 35793088; PubMed Central PMCID: PMC9260480.
+32.
+Nianogo RA, Rosenwohl-Mack A, Yaffe K, Carrasco A, Hoffmann CM, Barnes DE. Risk Factors Associ-
+ated With Alzheimer Disease and Related Dementias by Sex and Race and Ethnicity in the US. JAMA
+Neurol. 2022; 79(6):584–91. https://doi.org/10.1001/jamaneurol.2022.0976 PMID: 35532912; PubMed
+Central PMCID: PMC9086930.
+33.
+Guzman-Velez E, Diez I, Schoemaker D, Pardilla-Delgado E, Vila-Castelar C, Fox-Fuller JT, et al. Amy-
+loid-beta and tau pathologies relate to distinctive brain dysconnectomics in preclinical autosomal-domi-
+nant Alzheimer’s disease. Proc Natl Acad Sci U S A. 2022; 119(15):e2113641119. https://doi.org/10.
+1073/pnas.2113641119 PMID: 35380901; PubMed Central PMCID: PMC9169643.
+34.
+Christodoulou E, Ma J, Collins GS, Steyerberg EW, Verbakel JY, Van Calster B. A systematic review
+shows no performance benefit of machine learning over logistic regression for clinical prediction mod-
+els. J Clin Epidemiol. 2019; 110:12–22. Epub 2019/02/15. https://doi.org/10.1016/j.jclinepi.2019.02.004
+PMID: 30763612.
+35.
+Balea-Fernandez FJ, Martinez-Vega B, Ortega S, Fabelo H, Leon R, Callico GM, et al. Analysis of Risk
+Factors in Dementia Through Machine Learning. J Alzheimers Dis. 2021; 79(2):845–61. Epub 2020/12/
+29. https://doi.org/10.3233/JAD-200955 PMID: 33361594.
+36.
+Feng JZ, Wang Y, Peng J, Sun MW, Zeng J, Jiang H. Comparison between logistic regression and
+machine learning algorithms on survival prediction of traumatic brain injuries. J Crit Care. 2019;
+54:110–6. Epub 2019/08/14. https://doi.org/10.1016/j.jcrc.2019.08.010 PMID: 31408805.
+37.
+Mandrekar JN. Receiver operating characteristic curve in diagnostic test assessment. J Thorac Oncol.
+2010; 5(9):1315–6. https://doi.org/10.1097/JTO.0b013e3181ec173d PMID: 20736804.
+38.
+Newman-Norlund RD, Newman-Norlund SE, Sayers S, Nemati S, Riccardi N, Rorden C, et al. The
+Aging Brain Cohort (ABC) repository: The University of South Carolina’s multimodal lifespan database
+for studying the relationship between the brain, cognition, genetics and behavior in healthy aging. Neu-
+roimage Rep. 2021; 1(1). https://doi.org/10.1016/j.ynirp.2021.100008
+39.
+Duchowny KA, Ackley SF, Brenowitz WD, Wang J, Zimmerman SC, Caunca MR, et al. Associations
+Between Handgrip Strength and Dementia Risk, Cognition, and Neuroimaging Outcomes in the UK Bio-
+bank Cohort Study. JAMA Netw Open. 2022; 5(6):e2218314. https://doi.org/10.1001/
+jamanetworkopen.2022.18314 PMID: 35737388; PubMed Central PMCID: PMC9227006.
+40.
+Daly B, Thompsell A, Sharpling J, Rooney YM, Hillman L, Wanyonyi KL, et al. Evidence summary: the
+relationship between oral health and dementia. Br Dent J. 2018; 223(11):846–53. https://doi.org/10.
+1038/sj.bdj.2017.992 PMID: 29192686.
+41.
+Delwel S, Binnekade TT, Perez R, Hertogh C, Scherder EJA, Lobbezoo F. Oral hygiene and oral health
+in older people with dementia: a comprehensive review with focus on oral soft tissues. Clin Oral Investig.
+2018; 22(1):93–108. Epub 2017/11/17. https://doi.org/10.1007/s00784-017-2264-2 PMID: 29143189;
+PubMed Central PMCID: PMC5748411.
+42.
+Harding A, Gonder U, Robinson SJ, Crean S, Singhrao SK. Exploring the Association between Alzhei-
+mer’s Disease, Oral Health, Microbial Endocrinology and Nutrition. Front Aging Neurosci. 2017; 9:398.
+Epub 2017/12/19. https://doi.org/10.3389/fnagi.2017.00398 PMID: 29249963; PubMed Central
+PMCID: PMC5717030.
+PLOS ONE
+Identifying cognitive impairment
+PLOS ONE | https://doi.org/10.1371/journal.pone.0301979
+April 11, 2024
+15 / 15
+
