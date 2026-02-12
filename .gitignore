@@ -209,3 +209,4 @@ __marimo__/
 # Datasets
 datasets/
 corpus/
+resources/ontology/**
