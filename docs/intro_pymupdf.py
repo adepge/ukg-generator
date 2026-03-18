@@ -3,9 +3,9 @@ import pymupdf4llm
 import json
 import pandas
 
-file_path = "/home/adamg/Documents/Repositories/ukg-generator/docs/test/paper.pdf"
-json_file_path = "/home/adamg/Documents/Repositories/ukg-generator/docs/test/output.json"
-txt_file_path = "/home/adamg/Documents/Repositories/ukg-generator/docs/test/output.txt"
+file_path = "/home/adamg/Documents/Repositories/ukg-generator/docs/test/paper2.pdf"
+json_file_path = "/home/adamg/Documents/Repositories/ukg-generator/docs/test/output2.json"
+txt_file_path = "/home/adamg/Documents/Repositories/ukg-generator/docs/test/output2.txt"
 images_path = "/home/adamg/Documents/Repositories/ukg-generator/docs/test/images"
 
 doc = pymupdf.open(file_path) # open a document

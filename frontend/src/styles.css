@@ -1,0 +1,70 @@
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  color: #111827;
+  background: #f3f4f6;
+}
+
+.app {
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 1rem 2rem;
+}
+
+.panel {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+}
+
+input,
+select,
+button {
+  padding: 8px;
+}
+
+.graph {
+  height: 75vh;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+}
+
+.graph-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.graph-tooltip {
+  position: absolute;
+  z-index: 10;
+  max-width: 320px;
+  padding: 8px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
+  color: #111827;
+  font-size: 12px;
+  line-height: 1.4;
+  pointer-events: none;
+}
+
+.graph-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.graph-actions {
+  display: flex;
+  gap: 8px;
+}

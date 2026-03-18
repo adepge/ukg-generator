@@ -210,3 +210,13 @@ __marimo__/
 datasets/
 corpus/
 resources/ontology/**
+
+# Node modules
+node_modules/
+
+# Output
+output/
+src/output/
+
+# Backend media files
+backend/media/
