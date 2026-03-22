@@ -1,0 +1,31 @@
+@prefix cog: <http://example.org/cognition#> .
+
+cog:_ cog:of "patients" .
+
+cog:_4_allele cog:of "apolipoprotein_e_gene" .
+
+cog:between_29__and_76_ cog:is_a cog:PERCENT .
+
+cog:blood_pressure cog:be "risk_factors" ;
+    cog:is_a cog:risk_factors .
+
+cog:goal cog:of "study" .
+
+cog:increasing_age cog:be "strongest_predictors" ;
+    cog:is_a cog:strongest_predictors .
+
+cog:logistic_models cog:have "similar_discriminatory_abilities" .
+
+cog:patients cog:with "dementia" .
+
+cog:prevalence cog:of "impaired_cognition" .
+
+cog:svm cog:is_a cog:ORG .
+
+cog:the_third_national_health_and_nutrition_examination_survey cog:is_a cog:ORG .
+
+cog:we cog:use "data" ;
+    cog:use_from "third_health_examination_survey" .
+
+cog:strongest_predictors cog:of "impaired_cognition" .
+

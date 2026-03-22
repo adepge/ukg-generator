@@ -1,0 +1,549 @@
+@prefix cog: <http://example.org/dementia-study#> .
+
+cog:2describes_associations cog:between "risk_factors" .
+
+cog:_4_allele cog:of "apolipoprotein_e_gene",
+        "protein_e_gene" .
+
+cog:__centers cog:for "medicare" .
+
+cog:ability cog:of "impaired_tion_score" .
+
+cog:access cog:to "healthcare" .
+
+cog:accurate_measures cog:of "cogni_tion" .
+
+cog:adrd_cases cog:in "men" .
+
+cog:af_test cog:assess "verbal_ency_domain" .
+
+cog:age cog:be "part" ;
+    cog:is_a cog:part .
+
+cog:analysis cog:identify "modifiable_risk_factors" ;
+    cog:of "nationallyrepresentative_sample" .
+
+cog:approach cog:seem_Despite "limitations" .
+
+cog:area cog:for "crude_model",
+        "logistic_model" ;
+    cog:in "was0.74" ;
+    cog:under "curve" .
+
+cog:assess_ment cog:of "impaired_cognition" .
+
+cog:assessment cog:do_at "mec" ;
+    cog:for "older_individuals" ;
+    cog:of "impaired_cog_nition" .
+
+cog:association cog:between "impaired_cognition_score" .
+
+cog:auc cog:be "0.77" ;
+    cog:for "age",
+        "models" ;
+    cog:is_a cog:0_77 ;
+    cog:of "0.63" .
+
+cog:aviolation cog:of "assumption" ;
+    cog:result_in "loss" .
+
+cog:benefits cog:from "subsequentinterventions" ;
+    cog:is_a cog:modest .
+
+cog:besidesincreasing_age cog:associate_with "higher_risk" .
+
+cog:best_estimation cog:of "model" .
+
+cog:binary_outcome cog:for "cognitive_impairment" .
+
+cog:bined_information cog:In "contrast" ;
+    cog:on "risk_factors" .
+
+cog:blood_pressure cog:be "part" ;
+    cog:is_a cog:part .
+
+cog:broader_range cog:of "predictors" .
+
+cog:cases cog:among "africanamericans",
+        "hispanics" .
+
+cog:causes cog:of "cognitive_impairment" .
+
+cog:cerad_model cog:assess "imme_diate" .
+
+cog:charac_teristics cog:of "participants" .
+
+cog:circumference_andphysical_activity cog:have "same_rank" .
+
+cog:cogni_tion cog:as "extensive_neurocognitive_testing" .
+
+cog:cognition cog:for "participants" .
+
+cog:cognitive_assessment cog:in "ter_dataset" .
+
+cog:cognitive_impairment cog:in "development_datasets",
+        "iii_data",
+        "nhanes_2011through",
+        "olderadults",
+        "validation_dataset" .
+
+cog:cognitive_performance cog:in "trainingand" .
+
+cog:cognitive_score cog:use "newer_meth_ods" ;
+    cog:use_For "example" .
+
+cog:combination cog:of "risk_factors" .
+
+cog:combinations cog:of "risk_factors" .
+
+cog:complete_address cog:including "street" .
+
+cog:contribution cog:of "feature" .
+
+cog:covariates cog:in "methods_was0.78" ;
+    cog:measure "included_age" ;
+    cog:measure_in "years" .
+
+cog:cross___sectional_data cog:from "third_health_nation_survey" .
+
+cog:crp cog:be "highest_contributor" ;
+    cog:be_In "training_dataset" ;
+    cog:is_a cog:highest_contributor .
+
+cog:cutoff cog:of "impaired_tive_performance" .
+
+cog:data cog:is_a cog:dentified ;
+    cog:on "assessment_andcovariates" .
+
+cog:dataset cog:with "accurate_measures" .
+
+cog:detailed_collection_methods cog:for "covariates" ;
+    cog:is_a cog:similar .
+
+cog:details cog:about "variables" ;
+    cog:is_a cog:available ;
+    cog:provide "ins1appendix" .
+
+cog:development cog:of "symptoms" .
+
+cog:diagnosis cog:of "impaired_cognitionamong_older_adults" .
+
+cog:distribution cog:of "mmse_score" .
+
+cog:dsst cog:assess "attention" .
+
+cog:early_diagnosis cog:of "impaired_cognition" .
+
+cog:efit cog:in "machine_learning" .
+
+cog:evaluation cog:of "impaired_cognition" .
+
+cog:evidenceof_associations cog:between "individual_risk_factors" .
+
+cog:exception cog:of "age" .
+
+cog:exclusions cog:remain "training_datasets" .
+
+cog:existing_screening_tools cog:as "mini_-_mental_state_examination" .
+
+cog:factors cog:be_With "exception" ;
+    cog:is_a cog:modifiable .
+
+cog:fewer_social_connection cog:by "phone" .
+
+cog:fewer_social_connections cog:by "phone_social_connections" .
+
+cog:fewstudies cog:focus_on "combination" .
+
+cog:final_list cog:of "predictors" .
+
+cog:formal_screening cog:increase "positive_predictive_value" ;
+    cog:of "individuals" .
+
+cog:formal_way cog:in "assess_ment" ;
+    cog:is_a cog:challenging .
+
+cog:frequent_daily_social_connection cog:by "phone" .
+
+cog:frequent_weekly_participation cog:in "church" .
+
+cog:fromcomplaints cog:by "individual" .
+
+cog:goal cog:of "study" .
+
+cog:greater_prevalence cog:in "current_form" ;
+    cog:of "cognitive_impairment" .
+
+cog:higher_risk cog:of "cognition_impairment" .
+
+cog:history cog:of "diabetes" .
+
+cog:household__lifestyle_factorsconsisting cog:of "smoking_status" .
+
+cog:identifies cog:have "impaired_cognition" .
+
+cog:imme_diate cog:of "new_verbal_information" .
+
+cog:impaired_cognition cog:in "continuous_2011through_data",
+        "study" .
+
+cog:impaired_cognition_score cog:for "each" ;
+    cog:in "tertiles" .
+
+cog:impaired_cognition_scores cog:for "cognitive_performance" .
+
+cog:impaired_tive_performance cog:in "validation_dataset" .
+
+cog:increasing_age cog:be "strongest_predictors" ;
+    cog:is_a cog:strongest_predictors .
+
+cog:individuals cog:in "lowest_10%of" .
+
+cog:infor_mation cog:is_a cog:present .
+
+cog:information cog:from "logistic_sion_methods" ;
+    cog:in "respective_health_records" ;
+    cog:is_a cog:available,
+        cog:present ;
+    cog:on "known_risk_factors",
+        "oral_status_inaddition",
+        "risk_factors",
+        "theserisk_factors" .
+
+cog:initial_set cog:of "possible_predictors" .
+
+cog:interviewer cog:tell "participant_thenames" .
+
+cog:it cog:consist "recall" ;
+    cog:consist_of "orientation" .
+
+cog:kivipelto cog:develop_thecaide "impaired_cognition_score" .
+
+cog:known_risk_factors cog:as "data_source" .
+
+cog:lack cog:of "physical_activity" .
+
+cog:likelihood cog:for "individuals" ;
+    cog:of "impairedcognition" .
+
+cog:log_odds cog:of "outcome" .
+
+cog:logistic_models cog:have "similar_discriminatory_abilities" ;
+    cog:in "datasets" .
+
+cog:logistic_regression cog:in "clinical_prediction",
+        "smaller_samples" .
+
+cog:loss cog:of "efficiency" .
+
+cog:many cog:beenrelate_with "cognition" .
+
+cog:measures cog:of "cognition" .
+
+cog:mild_cognitive_impairment cog:versus "impairment" .
+
+cog:missing_values cog:in "covariates" .
+
+cog:model cog:could_use "toidentify_groups" ;
+    cog:refine_in "dataset" .
+
+cog:modifiablerisk_factors cog:account_Among "representative_older_us_adults" ;
+    cog:account_for "%" .
+
+cog:moment cog:in "time" .
+
+cog:national_center cog:for "health_statistics" .
+
+cog:nationallyrepresentative_sample cog:of "us_adults" .
+
+cog:none cog:versus "moderateor" .
+
+cog:number_pairs cog:within "thetime_frame" .
+
+cog:odds cog:Among "participants" ;
+    cog:among "participants" ;
+    cog:be "0.87",
+        "0.89–0.98",
+        "0.94",
+        "0.97–0.99",
+        "3.95",
+        "4.31",
+        "95%ci",
+        "=",
+        "odds",
+        "oddsamong_participants" ;
+    cog:be_In "trainingdataset",
+        "validation_dataset" ;
+    cog:be_greaterwith "fewer_social_connections",
+        "higher_age" ;
+    cog:is_a cog:0_87,
+        cog:3_95,
+        cog:_ ;
+    cog:of "low_cognition_performance",
+        "low_cognitive_perfor_mance",
+        "low_cognitive_performance",
+        "participants",
+        "poor_cognition" .
+
+cog:oddsamong_participants cog:in "tertile" .
+
+cog:ofimpaired_cognition cog:from "information" ;
+    cog:in "older_adults" ;
+    cog:of "patient" .
+
+cog:older_individuals cog:at "annual_wellness_visits" .
+
+cog:ologic_changes cog:in "brain" .
+
+cog:oral_health_informationis cog:use_For "example" .
+
+cog:other_risk_factors cog:including "those" .
+
+cog:our cog:goalwa_at "moment" .
+
+cog:outcome cog:be "total_score" ;
+    cog:is_a cog:total_score ;
+    cog:with "pre_-_dictor_variables" .
+
+cog:p_0_001__s1_table cog:in "s1_appendix" .
+
+cog:par_ticipant cog:give "tries" .
+
+cog:par_ticipants cog:exclude_for "missing_values",
+        "valid_measurement" ;
+    cog:in "validation_dataset" .
+
+cog:participant_thenames cog:of "items" .
+
+cog:participants cog:be_In "validation_dataset" ;
+    cog:in "tertile",
+        "training_dataset" ;
+    cog:is_a cog:likely,
+        cog:older ;
+    cog:of "continuous_nhanessurveys",
+        "trainingdataset" ;
+    cog:wereexclude_In "training_dataset" ;
+    cog:wereexclude_because "missing_values" ;
+    cog:with "low_cognitive_perfor_mance",
+        "lowcognitive_performance" .
+
+cog:particularpatient cog:from "model" .
+
+cog:patients cog:with "dementia" .
+
+cog:peers cog:with "good_cognitive_performance",
+        "high_cognitive_performance" .
+
+cog:people cog:have "increased_risk" ;
+    cog:have_In "addition" ;
+    cog:with "diabetes" .
+
+cog:performance cog:of "prediction_models" .
+
+cog:poor_cognition cog:among "intertile_3",
+        "participants" ;
+    cog:for "those" .
+
+cog:poor_cognitive_performance cog:in "training_dataset" .
+
+cog:positive_predictive cog:increase_for "tools" .
+
+cog:positive_predictive_value cog:of "existing_screening_tools" .
+
+cog:possible_reason cog:for "this" .
+
+cog:predictdementia_incidence cog:in "other_prospective_studies" ;
+    cog:over "time" .
+
+cog:predicted_probability cog:of "cognitive_impairment" .
+
+cog:predictive_properties cog:be_For "exam_ple" ;
+    cog:be_in "acceptable_range" ;
+    cog:of "model",
+        "themodel" .
+
+cog:predictivemodels cog:in "developmental_dataset" .
+
+cog:prevalence cog:among "us_older_adults" ;
+    cog:of "cognitiveimpairment",
+        "impaired_cognition" .
+
+cog:registry cog:for "disease" .
+
+cog:replication_dataset cog:among "ing_older_adults" .
+
+cog:replications cog:to "best_estimation" .
+
+cog:representative_sample cog:of "older_us_adults" .
+
+cog:results cog:from "machine_learning" .
+
+cog:review cog:by "review_board" .
+
+cog:review_board cog:of "theuniversity" .
+
+cog:richerdataset cog:with "accurate_outcome_measures" .
+
+cog:risk_factors cog:in "model",
+        "trainingdataset" .
+
+cog:routine_screening cog:for "cognitive_impairment",
+        "impaired_cogni_tion" .
+
+cog:s1_fig cog:in "s1_appendix" .
+
+cog:s2_table cog:in "s1_appendix" .
+
+cog:same_rank cog:in "datasets" .
+
+cog:sample_weights cog:use "inall_procedures" .
+
+cog:score cog:of "0" .
+
+cog:screening_tools cog:be "effective_inidentifying_cognitive_impairment" ;
+    cog:is_a cog:effective_inidentifying_cognitive_impairment .
+
+cog:several_other_factors cog:correlate_with "impaired_cognitionincluding_blood_pressure" .
+
+cog:sexand_adjusted_model cog:in "logistic_models" .
+
+cog:study cog:have "limitations",
+        "several_strengths" .
+
+cog:subset cog:of "cross_-_sectional_data" .
+
+cog:svm_model cog:perform_in "r_program" ;
+    cog:perform_with "e1071_package" .
+
+cog:systematic_review cog:find "-",
+        "ben",
+        "efit" ;
+    cog:find_with "dimension_data[36" .
+
+cog:the cog:embed_in "electronic_record_system" .
+
+cog:theinterviewer cog:ask "participant" .
+
+cog:theodds cog:among "participants" .
+
+cog:therelation cog:between "continuous_risk_factors" .
+
+cog:these cog:individualswere "likely" .
+
+cog:thesefindings cog:is_a cog:similar .
+
+cog:theuniversity cog:of "south_carolina" .
+
+cog:they cog:ask_For "example" .
+
+cog:this cog:could_have_reduce "predictive_properties" .
+
+cog:threshold cog:be "0.05" ;
+    cog:for "statistical_significance" ;
+    cog:is_a cog:0_05 .
+
+cog:toidentify_groups cog:with "greater_prevalence" .
+
+cog:tolea cog:report "auc" .
+
+cog:top_contributors cog:to "poor_cognitive_performance" .
+
+cog:total_number cog:of "correct_symbols" .
+
+cog:training_dataset cog:from "nhanes_iii" .
+
+cog:training_datasets cog:be "-" ;
+    cog:be_from "samples" ;
+    cog:is_a cog:sentative .
+
+cog:undiagnosed_nitive_impairment cog:in "representative_sample" .
+
+cog:unhealthy_lifestyles cog:including "smoking" .
+
+cog:unit_increase cog:in "healthy_eating_index_score" .
+
+cog:university cog:of "irb",
+        "south_carolina" .
+
+cog:usptf cog:does_recommend "routine_screening" .
+
+cog:valid_measurement cog:for "cognition_and962" .
+
+cog:validated_algorithm cog:could_use "pertinent_information" .
+
+cog:validationdataset cog:consist_from "participants" ;
+    cog:consist_of "cross_-_sectional_information" ;
+    cog:consist_through "2014" .
+
+cog:verbal_ency_domain cog:of "executive_function" .
+
+cog:version cog:of "mini_-_mental_stateexamination" .
+
+cog:waist_circumference cog:in "cm" .
+
+cog:we cog:apply "different_methods" ;
+    cog:calculate "area",
+        "impaired_cognition_score" ;
+    cog:calculate_under "thecurve_graphs" ;
+    cog:call "this",
+        "training_dataset" ;
+    cog:choose "validation_dataset" ;
+    cog:define "cognitive_impairment",
+        "distribution" ;
+    cog:define_as "lowest_10%of" ;
+    cog:derive "beta" ;
+    cog:derive_coefficientsfor "variable" ;
+    cog:derive_from "predictive_model" ;
+    cog:develop "model",
+        "models" ;
+    cog:document "participants" ;
+    cog:document_with "low_cognitive_performance" ;
+    cog:estimate "odds_ratios(or" ;
+    cog:include "information" ;
+    cog:include_to "other_risk_factors" ;
+    cog:information_In "contrast" ;
+    cog:information_on "risk_factors" ;
+    cog:know_at "outset" ;
+    cog:obtain "predictivemodels" ;
+    cog:rank "contribution" ;
+    cog:structe "impaired_cognition_score" ;
+    cog:use "%",
+        "-_fold_cross_validation_method",
+        "10",
+        "final_prediction_model",
+        "known_risk_factors",
+        "machinelearning_methods",
+        "models",
+        "percentile",
+        "subset" ;
+    cog:use_in "sensitivity_analyses" ;
+    cog:use_obtainedfrom "iii_data" ;
+    cog:use_with "replications" .
+
+cog:werehigher_odds cog:In "datasets" ;
+    cog:of "poor_cognition" .
+
+cog:which cog:is_a cog:sum .
+
+cog:who cog:is_a cog:years .
+
+cog:wider_range cog:of "risk_factors" .
+
+cog:_ cog:for "logistic_andsvm_models",
+        "logistic_models" ;
+    cog:of "adrd_cases",
+        "cases",
+        "dementia",
+        "dementia_cases",
+        "patients" .
+
+cog:highest_contributor cog:be "educa",
+        "tion" ;
+    cog:in "validation_dataset" ;
+    cog:is_a cog:tion .
+
+cog:sum cog:of "total_number" .
+
+cog:part cog:of "care_score",
+        "top_contributorsin" .
+

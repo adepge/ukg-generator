@@ -1,0 +1,4 @@
+lemmas.json filter=lfs diff=lfs merge=lfs -text
+term_filter.json filter=lfs diff=lfs merge=lfs -text
+acronyms.json filter=lfs diff=lfs merge=lfs -text
+umls_terms.txt filter=lfs diff=lfs merge=lfs -text

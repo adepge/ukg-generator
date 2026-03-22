@@ -67,6 +67,7 @@ TOP_LEVEL_HEADINGS = {
     "acknowledgements",
     "acknowledgments",
     "summary",
+    "article highlights",
 }
 
 # Subheadings to extract from the abstract.
@@ -924,7 +925,7 @@ def associate_citations(sections: list[Section]) -> list[Section]:
         for match in CITATION_PATTERN.finditer(section.text):
             citation_numbers.extend(parse_citation_block(match.group(0)))
 
-        section.text = CITATION_PATTERN.sub("", section.text)
+        # section.text = CITATION_PATTERN.sub("", section.text)
         section.citations = citation_numbers
     return sections 
 
@@ -947,7 +948,6 @@ def iterate_spans(box: dict[str, Any]):
     for textline in box.get("textlines", []):
         for span in textline.get("spans", []):
             yield span
-
 
 def get_preferred_heading(text: str) -> str:
     """
@@ -1047,6 +1047,9 @@ def extract_box_text(box: dict[str, Any], min_size: float | None = None) -> str:
         size = float(span.get("size", 0.0))
         # If the size of the span is less than the minimum size, skip the span.
         if min_size is not None and size and size < min_size:
+            # If the text matches the pattern of a citation, add it to the text.
+            if CITATION_PATTERN.search(span.get("text", "")):
+                text = merge_text_chunks(text, span.get("text", ""))
             continue
         # Merge the text across all spans in the box.
         text = merge_text_chunks(text, span.get("text", ""))

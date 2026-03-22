@@ -38,7 +38,7 @@ let graph = null;
 let renderer = null;
 let hoveredEdgeId = null;
 
-const NODE_BASE_COLOR = "#2563eb";
+const NODE_BASE_COLOR = "#146173";
 const NODE_TEXT_COLOR = "#1f2937";
 const EDGE_BASE_OPACITY = 1;
 const EDGE_BASE_COLOR = "#146173";

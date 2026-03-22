@@ -208,8 +208,6 @@ __marimo__/
 
 # Datasets
 datasets/
-corpus/
-resources/ontology/**
 
 # Node modules
 node_modules/
