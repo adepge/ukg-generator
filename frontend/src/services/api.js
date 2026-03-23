@@ -11,13 +11,22 @@ export async function uploadPdf(file) {
   return response.data;
 }
 
+export async function uploadPdfs(files) {
+  const formData = new FormData();
+  for (const file of files) {
+    formData.append("files", file);
+  }
+  const response = await api.post("/documents/upload", formData);
+  return response.data;
+}
+
 export async function listDocuments() {
   const response = await api.get("/documents");
   return response.data;
 }
 
-export async function fetchGraph(query = "") {
-  const response = await api.get("/graph", { params: query ? { q: query } : {} });
+export async function fetchGraph(params = {}) {
+  const response = await api.get("/graph", { params });
   return response.data;
 }
 

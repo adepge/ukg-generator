@@ -19,7 +19,7 @@ from extraction_module import Section
 
 
 # Words and characters which do not provide much lexical information (or are generic words) about the relations as entities
-blacklist_words = [
+blacklist_words = {
     "we",
     "us",
     "our",
@@ -35,7 +35,6 @@ blacklist_words = [
     "who",
     "whom",
     "whose",
-    "model",
     "former",
     "latter",
     "service",
@@ -58,60 +57,186 @@ blacklist_words = [
     "area",
     "odds",
     "part",
-    "data",
     "view",
     "set",
-    "example",
-    "table",
-    "figure",
     "fig",
     "figs",
     "chart",
     "charts",
-    "graph",
-    "graphs",
     "plot",
     "plots",
-    "image",
     "photo",
     "picture",
     "video",
     "audio",
     "tries",
-    "approach",
     "sum",
     "information",
     "similar",
     "moment",
     "dataset",
-    "datasets"
+    "datasets",
     "access",
     "threshold",
-    "feature",
-    "item",
-    "items",
     "object",
-    "details",
     "means",
-    "variables",
     "index",
     "indices",
     "metrics",
-    "tools",
-    "methods",
-    "study",
-    "studies",
-    "risk",
-    "factors",
-    "points",
-    "results",
-    "result",
-    "measure",
-    "measures",
     "exception",
     "exceptions",
+    "using",
+    "percentile",
+    "prevalent",
+    "validated",
+    "predict",
+    "improved",
+    "self",
+    "with",
+    "within",
+    "roles",
+    "role"
+    "big",
+    "small",
+    "medium",
+    "large",
+    "few",
+    "more",
+    "many",
+    "specific",
+    "need",
+    "supporting",
+    "science",
+    "other hand",
+    "machine learning",
+}
+
+STOPWORDS = {
+    "a",
+    "an",
+    "the",
+    "and",
+    "or",
+    "of",
+    "in",
+    "on",
+    "for",
+    "to",
+    "with",
+    "by",
+    "from",
+    "at",
+    "as",
+    "is",
+    "are",
+    "was",
+    "were",
+    "be",
+    "been",
+    "this",
+    "that",
+    "these",
+    "those",
+    "it",
+    "they",
+    "we",
+    "our",
+    "next",
+    "last",
+    "previous",
+    "other",
+    "higher",
+    "lower",
+}
+
+GENERIC_ENTITY_WORDS = {
+    "approach",
     "case",
-]
+    "cases",
+    "cause",
+    "data",
+    "details",
+    "example",
+    "examples",
+    "factor",
+    "factors",
+    "feature",
+    "features",
+    "figure",
+    "figures",
+    "graph",
+    "graphs",
+    "image",
+    "images",
+    "information",
+    "item",
+    "items",
+    "measure",
+    "measures",
+    "method",
+    "methods",
+    "model",
+    "models",
+    "point",
+    "points",
+    "result",
+    "results",
+    "risk",
+    "risks",
+    "score",
+    "scores",
+    "state",
+    "study",
+    "studies",
+    "table",
+    "tables",
+    "tool",
+    "tools",
+    "type",
+    "types",
+    "variable",
+    "variables",
+}
+
+SPECIAL_ENTITY_CHARS = ["%", "±", "(", ")", "[", "]", "{", "}", "<", ">", "="]
+
+
+def is_low_information_entity(text: str, custom_blacklist: list[str] | None = None) -> bool:
+    """Return True when an entity-like span is too generic to keep."""
+    normalized = text.replace("_", " ").strip().lower()
+
+    if len(normalized) < 3:
+        return True
+
+    if normalized in blacklist_words:
+        return True
+    
+    if custom_blacklist and normalized in custom_blacklist:
+        return True
+
+    if re.search(r"\d+(\.\d+)?%?", normalized):
+        return True
+
+    if any(char in normalized for char in SPECIAL_ENTITY_CHARS):
+        return True
+
+    tokens = re.findall(r"[a-z]+", normalized)
+    if not tokens:
+        return True
+
+    meaningful_tokens = [
+        token
+        for token in tokens
+        if token not in STOPWORDS and token not in GENERIC_ENTITY_WORDS
+    ]
+
+    if not meaningful_tokens:
+        return True
+
+    if len(tokens) == 1 and tokens[0] in GENERIC_ENTITY_WORDS:
+        return True
+
+    return False
 
 # ---------------------------------------------------------------------------
 # Data structures
@@ -125,9 +250,6 @@ class Triple(NamedTuple):
     conf: float = 0.0                   # Confidence score of the triple.
     source: str = ""                    # Source of the triple (its extraction method).
     section: str = ""                   # Section of the triple.
-    document_citation_count: int = 0    # Number of citations of the document which generated the triple.
-    reference_count: int = 0            # Number of references associated with the paragraph forming the triple.
-    reference_citation_count: int = 0   # Total number of citations from the references associated with the paragraph forming the triple.
 
     def __str__(self):
         return f"({self.sub}, {self.pred}, {self.obj})"
@@ -210,17 +332,17 @@ class TripleExtractor:
                 # Get the compound noun for the subject using the child branch of the dependency tree.
                 subject = self.get_compound_noun(child)
                 break
-        if subject is None or self.is_non_lexical_word(subject):
+        if subject is None or is_low_information_entity(subject):
             return triples
 
         # Direct objects / attributes
         for child in verb.children:
             if child.dep_ in ("dobj", "attr", "oprd"):
                 obj = self.get_compound_noun(child)
-                if obj is None or self.is_non_lexical_word(obj):
+                if obj is None or is_low_information_entity(obj):
                     continue
                 predicate = self.get_verb_phrase(verb)
-                triples.append(Triple(subject, predicate, obj, 0.3, "svo"))
+                triples.append(Triple(subject, predicate, obj, 0.15, "svo"))
 
         # Prepositional objects attached to the verb
         for child in verb.children:
@@ -228,10 +350,10 @@ class TripleExtractor:
                 for pobj in child.children:
                     if pobj.dep_ == "pobj":
                         obj = self.get_compound_noun(pobj)
-                        if obj is None or self.is_non_lexical_word(obj):
+                        if obj is None or is_low_information_entity(obj):
                             continue
                         predicate = f"{verb.lemma_}_{child.text}".lower()
-                        triples.append(Triple(subject, predicate, obj, 0.3, "svo"))
+                        triples.append(Triple(subject, predicate, obj, 0.15, "svo"))
 
         # Passive voice: "X was done by Y"
         if any(c.dep_ == "nsubjpass" for c in verb.children):
@@ -240,11 +362,11 @@ class TripleExtractor:
                     for pobj in child.children:
                         if pobj.dep_ == "pobj":
                             agent = self.get_compound_noun(pobj)
-                            if agent is None or self.is_non_lexical_word(agent):
+                            if agent is None or is_low_information_entity(agent):
                                 continue
                             predicate = self.get_verb_phrase(verb)
                             triples.append(
-                                Triple(agent, predicate, subject, 0.3, "svo")
+                                Triple(agent, predicate, subject, 0.15, "svo")
                             )
 
         return triples
@@ -295,9 +417,9 @@ class TripleExtractor:
 
             if subject and obj:
                 # Check if the subject or object is a non-lexical word
-                if self.is_non_lexical_word(subject) or self.is_non_lexical_word(obj):
+                if is_low_information_entity(subject) or is_low_information_entity(obj):
                     continue
-                triples.append(Triple(subject, "is_a", obj, 0.2, "copular"))
+                triples.append(Triple(subject, "is_a", obj, 0.1, "copular"))
 
         return triples
 
@@ -318,7 +440,7 @@ class TripleExtractor:
             # Check if the token is a preposition and the head is a noun or proper noun
             if token.dep_ == "prep" and token.head.pos_ in ("NOUN", "PROPN"):
                 subject = self.get_compound_noun(token.head)
-                if self.is_non_lexical_word(subject):
+                if is_low_information_entity(subject):
                     continue
                 prep = token.text.replace(" ", "_").lower()
 
@@ -326,9 +448,9 @@ class TripleExtractor:
                 for child in token.children:
                     if child.dep_ == "pobj":
                         obj = self.get_compound_noun(child)
-                        if self.is_non_lexical_word(obj):
+                        if is_low_information_entity(obj):
                             continue
-                        triples.append(Triple(subject, prep, obj, 0.2, "prep"))
+                        triples.append(Triple(subject, prep, obj, 0.1, "prep"))
 
         return triples
 
@@ -367,9 +489,9 @@ class TripleExtractor:
                 sub = self.get_compound_noun(left_noun)
                 pred = tok.lemma_.lower()
                 obj = self.get_compound_noun(right_noun)
-                if self.is_non_lexical_word(sub) or self.is_non_lexical_word(obj):
+                if is_low_information_entity(sub) or is_low_information_entity(obj):
                     continue
-                triples.append(Triple(sub, pred, obj, 0.1, "pos"))
+                triples.append(Triple(sub, pred, obj, 0.05, "pos"))
 
         return triples
 
@@ -422,34 +544,17 @@ class TripleExtractor:
                 parts.append(child.text)
 
         return "_".join(parts).lower()
-    
-    def is_non_lexical_word(self, text: str) -> bool:
-        """
-        Check if a text is a non-lexical word.
-        Input:
-            text: The text to check.
-        Returns:
-            A boolean representing whether the text is a non-lexical word.
-        """
-        # Filter out if it is too short
-        if len(text) < 3:
-            return True
-        # Filter out if it is in the blacklist
-        if text.lower() in blacklist_words:
-            return True
-        # Filter out if it contains a number or float
-        if re.search(r'\d+(\.\d+)?', text):
-            return True
-        # Filter out if it contains a percentage
-        if re.search(r'\d+(\.\d+)?%', text):
-            return True
-        # Filter out if it starts or ends with a special character
-        for char in ["%", "±", "(", ")", "[", "]", "{", "}", "<", ">", "="]:
-            if text.startswith(char) or text.endswith(char):
-                    return True
 
     def remove_duplicates(self, triples: list[Triple]) -> list[Triple]:
-        """Remove duplicates, keeping the first (highest-confidence) occurrence."""
+        """
+        Remove duplicates, keeping the first (highest-confidence) occurrence.
+        Boost the confidence of the existing triple by 0.005 for each duplicate.
+        For example, if there are 3 duplicates, the confidence will be boosted by 0.015.
+        Input:
+            triples: The list of triples to remove duplicates from.
+        Returns:
+            A list of unique triples.
+        """
         seen: set[tuple[str, str, str]] = set()
         unique: list[Triple] = []
         for t in triples:
@@ -460,7 +565,7 @@ class TripleExtractor:
             else:
                 # Add to the confidence of the existing triple
                 existing = next(t for t in unique if t.sub == key[0] and t.pred == key[1] and t.obj == key[2])
-                existing = existing._replace(conf=existing.conf + 0.01)
+                existing = existing._replace(conf=existing.conf + 0.001)
         return unique
 
 
@@ -534,14 +639,44 @@ class SpanRelationExtractor:
         self.relation_labels = relation_labels or DEFAULT_SPAN_RELATION_LABELS
         self.relation_threshold = relation_threshold
 
-    def extract_from_text(self, text: str, section: str = "") -> list[Triple]:
-        """Extract triples from *text* using span-based relation extraction."""
-        if not text.strip():
+    def _triples_from_relations(
+        self,
+        relations: list[dict],
+        section: str = "",
+    ) -> list[Triple]:
+        """Convert raw GLiNER relation output into Triple objects."""
+        triples: list[Triple] = []
+        for rel in relations:
+            if rel["score"] < self.relation_threshold:
+                continue
+            head = rel["head"]["text"]
+            tail = rel["tail"]["text"]
+            pred = rel["relation"]
+            score = max(0.5, float(rel["score"]) / 2.0)
+            sub = self.normalize_span_text(head)
+            obj = self.normalize_span_text(tail)
+            if is_low_information_entity(sub) or is_low_information_entity(obj):
+                continue
+            pred_norm = pred.replace(" ", "_").lower()
+            triples.append(Triple(sub, pred_norm, obj, score, "span", section))
+        return triples
+
+    def extract_from_texts(
+        self,
+        texts: list[str],
+        sections: list[str] | None = None,
+    ) -> list[Triple]:
+        """Extract triples from many texts in one GLiNER inference call."""
+        valid_items = [
+            (text, sections[idx] if sections else "")
+            for idx, text in enumerate(texts)
+            if text.strip()
+        ]
+        if not valid_items:
             return []
 
-        text_list = [text]
         entities, relations = self.model.inference(
-            texts=text_list,
+            texts=[text for text, _ in valid_items],
             labels=self.entity_labels,
             relations=self.relation_labels,
             threshold=0.3,
@@ -552,54 +687,13 @@ class SpanRelationExtractor:
         )
 
         triples: list[Triple] = []
-        for rel in relations[0]:
-            if rel["score"] < self.relation_threshold:
-                continue
-            head = rel["head"]["text"]
-            tail = rel["tail"]["text"]
-            pred = rel["relation"]
-            score = float(rel["score"])
-            sub = self.normalize_span_text(head)
-            obj = self.normalize_span_text(tail)
-            if self.is_non_lexical_word(sub) or self.is_non_lexical_word(obj):
-                continue
-            pred_norm = pred.replace(" ", "_").lower()
-            triples.append(Triple(sub, pred_norm, obj, score, "span"))
-
-        if section:
-            triples = [t._replace(section=section) for t in triples]
-
+        for (_, section), relation_group in zip(valid_items, relations):
+            triples.extend(self._triples_from_relations(relation_group, section=section))
         return triples
 
     def normalize_span_text(self, text: str) -> str:
         """Normalize span text to match Triple format (underscores, lowercase)."""
         return text.replace(" ", "_").lower()
-    
-    def is_non_lexical_word(self, text: str) -> bool:
-        """
-        Check if a text is a non-lexical word.
-        Input:
-            text: The text to check.
-        Returns:
-            A boolean representing whether the text is a non-lexical word.
-        """
-        # Filter out if it is too short
-        if len(text) < 3:
-            return True
-        # Filter out if it is in the blacklist
-        if text.lower() in blacklist_words:
-            return True
-        # Filter out if it contains a number or float
-        if re.search(r'\d+(\.\d+)?', text):
-            return True
-        # Filter out if it contains a percentage
-        if re.search(r'\d+(\.\d+)?%', text):
-            return True
-        # Filter out if it starts or ends with a special character
-        for char in ["%", "±", "(", ")", "[", "]", "{", "}", "<", ">", "="]:
-            if text.startswith(char) or text.endswith(char):
-                    return True
-        return False
 
 
 # ---------------------------------------------------------------------------
@@ -751,24 +845,34 @@ def generate_triples(
 
     if use_span_extraction:
         span_extractor = SpanRelationExtractor(model_name=span_model)
-        for section in sections:
-            span_triples = span_extractor.extract_from_text(section.text, section=section.heading)
-            all_triples.extend(span_triples)
+        sentence_texts: list[str] = []
+        sentence_sections: list[str] = []
+        docs = extractor.nlp.pipe((section.text for section in sections), batch_size=1024)
+        for section, doc in zip(sections, docs):
+            for sent in doc.sents:
+                sentence_texts.append(sent.text)
+                sentence_sections.append(section.heading)
+        all_triples.extend(
+            span_extractor.extract_from_texts(sentence_texts, sections=sentence_sections)
+        )
 
     all_triples = extractor.remove_duplicates(all_triples)
 
+    # Use the default ontology directory if no ontology directory is provided.
     ont_dir = Path(ontology_dir) if ontology_dir else None
     if ont_dir is None:
         default_dir = Path(__file__).resolve().parent.parent / "resources" / "ontology"
         if default_dir.exists():
             ont_dir = default_dir
 
+    # If the ontology directory exists, use the ontology filter to boost the confidence of the triples.
     if ont_dir is not None and ont_dir.exists():
         ont_filter = OntologyFilter(ont_dir)
         all_triples = ont_filter.boost(
             all_triples, require_match=require_ontology_match,
         )
 
+    # If an output path is provided, serialize the triples to the output file.
     if output_path:
         serializer = RDFSerializer(base_namespace)
         serializer.add_triples(all_triples)

@@ -8,9 +8,11 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional, Protocol
+from langdetect import detect
 
 
 # Regular expressions for extracting the DOI, URL, and PMID from the text.
@@ -20,6 +22,10 @@ PMID_REGEX = re.compile(r"\bPMID:\s*(\d+)\b", re.IGNORECASE)
 CITATION_PATTERN = re.compile(
     r"\[(?:\s*\d+\s*(?:[-–]\s*\d+\s*)?)(?:\s*,\s*\d+\s*(?:[-–]\s*\d+\s*)?)*\s*\]"
 )
+AUTHOR_YEAR_PATTERN = re.compile(r'\((?=[^)]*[A-Z])(?=[^)]*,)(?=[^)]*(?:19|20)[0-9][0-9])[A-Za-z0-9,&;.\’\'\s-]*\)')
+
+# Stopwords for acronym matching.
+STOPWORDS = {"of", "on", "and", "the", "in", "for", "to", "a", "an"}
 
 # Heading aliases for the reference list.
 REFERENCE_HEADINGS = {
@@ -114,6 +120,8 @@ class Section:
     level: int
     parent_heading: Optional[str] = None
     citations: Optional[list[int]] = None
+    number_of_citations: int = 0
+    citations_reference_count: int = 0
     path: list[str] = field(default_factory=list)
     page_numbers: list[int] = field(default_factory=list)
 
@@ -125,6 +133,7 @@ class Reference:
     doi: Optional[str] = None
     url: Optional[str] = None
     pmid: Optional[str] = None
+    citations_count: Optional[int] = None
 
     def as_legacy_tuple(self) -> tuple[int | None, str | None, str]:
         main_url = self.url
@@ -135,6 +144,7 @@ class Reference:
 
 @dataclass
 class ExtractionResult:
+    """Stores the extraction result."""
     metadata: DocumentMetadata
     sections: list[Section]
     references: list[Reference]
@@ -149,15 +159,32 @@ class ExtractionResult:
     def to_legacy_output(self) -> tuple[list[tuple[str, str]], list[tuple[int | None, str | None, str]]]:
         return self.to_tuples(), [reference.as_legacy_tuple() for reference in self.references]
 
+@dataclass
+class LearnedAcronyms:
+    """Stores the learned acronyms."""
+    acronyms: dict[str, str] = field(default_factory=dict)
+
+    def add_acronym(self, acronym: str, full_form: str):
+        if acronym in self.acronyms:
+            return
+        self.acronyms[acronym] = full_form
+
+    def replace_acronyms(self, string: str) -> str:
+        for acronym in self.acronyms:
+            if acronym in string:
+                string = string.replace(acronym, self.acronyms[acronym])
+        return string.strip()
 
 @dataclass
 class LayoutStats:
+    """Stores the document font size statistics."""
     body_font_size: float
     min_body_font_size: float
 
 
 @dataclass
 class HeadingCandidate:
+    """Stores the heading candidate."""
     page_number: int
     box_index: int
     text: str
@@ -212,6 +239,7 @@ class CrossrefEnricher:
             "journal": journal,
             "published_date": published_date,
             "citations_count": citations_count,
+            "references": message.get("reference", []),
         }
 
 def extract_json_data(file_path: str):
@@ -231,8 +259,7 @@ def extract_json_data(file_path: str):
 
     extracted_json = pymupdf4llm.to_json(
         doc,
-        image_path=str(output_dir),
-        write_images=True,
+        write_images=False,
         show_progress=True,
         use_ocr=False,
     )
@@ -248,6 +275,7 @@ def post_process_json_data(
     write_tuples: bool = False,
     write_references: bool = False,
     enrich_metadata: bool = False,
+    enrich_references: bool = False,
     metadata_enricher: MetadataEnricher | None = None,
 ) -> ExtractionResult:
     """
@@ -283,6 +311,13 @@ def post_process_json_data(
         sections = associate_citations(sections)
         reference_boxes = extract_reference_block(data, heading_candidates)
         references = parse_references(reference_boxes)
+        # If enabled and any reference text is longer than 250 characters, enrich the references using the DOI.
+        if enrich_references and any(len(reference.text) > 250 for reference in references):
+            print("Enriching references using the DOI.")
+            references = enrich_document_references(metadata.doi, metadata_enricher) if metadata.doi else []
+        
+        # Count the total "is-referenced-by-count" of the citations in the sections.
+        count_reference_citations(sections, references, metadata_enricher)
     else:
         references = []
     result = ExtractionResult(metadata=metadata, sections=sections, references=references)
@@ -569,6 +604,7 @@ def build_sections(
     sections: list[Section] = []
     current_section: Section | None = None
     section_stack: list[Section] = []
+    acronyms: LearnedAcronyms = LearnedAcronyms()
 
     for page_number, box_index, box in iterate_boxes(data):
         # Gets the heading candidate for the current box.
@@ -618,6 +654,14 @@ def build_sections(
         box_text = extract_box_text(box, min_size=layout_stats.min_body_font_size)
         if not box_text or is_unwanted_text(box_text):
             continue
+    
+        # If the text is not in English, skip it (This occurs in some articles where the preamble is not in English).
+        try:
+            if detect(box_text) != "en":
+                continue
+        except Exception:
+            print(f"Error detecting language of text: {box_text}")
+            continue
 
         # Merges the text from the box into the current section.
         current_section.text = merge_text_chunks(current_section.text, box_text)
@@ -626,6 +670,10 @@ def build_sections(
 
     # Remove sections with no text
     cleaned_sections = [section for section in sections if section.text.strip()]
+
+    # Replace the acronyms in the text with the full form.
+    for section in cleaned_sections:
+        section.text = find_and_replace_acronyms(section.text, acronyms)
     return cleaned_sections
 
 
@@ -877,9 +925,11 @@ def citation_litmus(sections: list[Section]) -> bool:
     for section in sections:
         if CITATION_PATTERN.search(section.text):
             count += 1
-        if count >= 3:
-            return True
-    return False
+        elif AUTHOR_YEAR_PATTERN.search(section.text):
+            count += 1
+        else:
+            continue
+    return count >= 3
 
 
 def parse_citation_block(citation_block: str) -> list[int]:
@@ -920,14 +970,172 @@ def associate_citations(sections: list[Section]) -> list[Section]:
     for section in sections:
         if section.citations:
             continue
+        
+        if AUTHOR_YEAR_PATTERN.search(section.text):
+            # Don't asscociate citations numbers if in-text citations (Harvard style) pattern is found
+            section.text = AUTHOR_YEAR_PATTERN.sub("", section.text)
+        else:
+            citation_numbers: list[int] = []
+            for match in CITATION_PATTERN.finditer(section.text):
+                citation_numbers.extend(parse_citation_block(match.group(0)))
+            section.text = CITATION_PATTERN.sub("", section.text)
+            section.text = section.text.replace("[,]", "").replace("[–]","")
+            section.citations = citation_numbers
 
-        citation_numbers: list[int] = []
-        for match in CITATION_PATTERN.finditer(section.text):
-            citation_numbers.extend(parse_citation_block(match.group(0)))
+    return sections
 
-        # section.text = CITATION_PATTERN.sub("", section.text)
-        section.citations = citation_numbers
-    return sections 
+def enrich_document_references(doi: str, enricher: MetadataEnricher | None = None) -> list[Reference]:
+    """
+    Obtains the references in the document using the DOI.
+    Input:
+        doi: The DOI of the document.
+    Returns:
+        A list of references.
+    """
+    enricher = enricher or CrossrefEnricher()
+    try:
+        enriched = enricher.enrich(doi or "")
+    except (urllib.error.URLError, TimeoutError, ValueError, json.JSONDecodeError):
+        return []
+    except Exception:
+        return []
+
+    raw_references = enriched.get("references")
+    if raw_references is None:
+        raw_references = enriched.get("message", {}).get("reference", [])
+    if not isinstance(raw_references, list):
+        return []
+
+    # Extract the value(s) from the reference objects using the keys given
+    def get_reference_value(reference_payload: dict[str, Any], *keys: str) -> str:
+        for key in keys:
+            value = reference_payload.get(key)
+            if isinstance(value, list):
+                value = " ".join(str(part).strip() for part in value if str(part).strip())
+            if value is None:
+                continue
+            cleaned = strip_special_chars(str(value))
+            if cleaned:
+                return cleaned
+        return ""
+
+    references: list[Reference] = []
+    for index, raw_reference in enumerate(raw_references, start=1):
+        if not isinstance(raw_reference, dict):
+            continue
+
+        doi_value = normalize_doi(get_reference_value(raw_reference, "DOI", "doi"))         # Normalize the DOI.
+        pmid_value = get_reference_value(raw_reference, "PMID", "pmid") or None             # Extract the PMID.
+        url_value = get_reference_value(raw_reference, "URL", "url") or None                # Extract the URL.
+        unstructured = get_reference_value(raw_reference, "unstructured")                   # Extract the unstructured text.
+
+        author = get_reference_value(raw_reference, "author")                               # Extract the author.  
+        title = get_reference_value(                                                        # Extract the title from the reference object.
+            raw_reference,
+            "article-title",
+            "chapter-title",
+            "series-title",
+            "volume-title",
+        )
+        journal = get_reference_value(raw_reference, "journal-title", "container-title")    # Extract the journal.
+        volume = get_reference_value(raw_reference, "volume")                               # Extract the volume.
+        issue = get_reference_value(raw_reference, "issue")                                 # Extract the issue.
+        first_page = get_reference_value(raw_reference, "first-page", "page")               # Extract the first page.
+        year = get_reference_value(raw_reference, "year")                                   # Extract the year.
+
+        # Rebuild the reference text from the extracted values.
+        # Build the source parts of the reference text.
+        source_parts: list[str] = []
+        if journal:
+            source_parts.append(journal)
+        if volume and issue:
+            source_parts.append(f"{volume}({issue})")
+        elif volume:
+            source_parts.append(volume)
+        elif issue:
+            source_parts.append(f"issue {issue}")
+        if first_page:
+            source_parts.append(f"p. {first_page}")
+        if year:
+            source_parts.append(year)
+
+        # Build the text parts of the reference text.
+        text_parts: list[str] = []
+        if author:
+            text_parts.append(author)
+        if title:
+            text_parts.append(title)
+        if source_parts:
+            text_parts.append(", ".join(source_parts))
+        if doi_value:
+            text_parts.append(f"DOI: {doi_value}")
+        elif url_value:
+            text_parts.append(url_value)
+        if pmid_value:
+            text_parts.append(f"PMID: {pmid_value}")
+
+        text = strip_special_chars(unstructured or ". ".join(text_parts))
+        if not text:
+            fallback_parts = [part for part in [doi_value, url_value, pmid_value] if part]
+            if not fallback_parts:
+                continue
+            text = " ".join(fallback_parts)
+
+        # Build the Reference object.
+        reference = build_reference(index, text)
+        reference.doi = reference.doi or doi_value
+        reference.url = reference.url or url_value or (f"https://doi.org/{doi_value}" if doi_value else None)
+        reference.pmid = reference.pmid or pmid_value
+        references.append(reference)
+
+    return references
+
+def count_reference_citations(sections: list[Section], references: list[Reference], metadata_enricher: MetadataEnricher | None = None) -> int:
+    """
+    Gets the total "is-referenced-by-count" of the references in the document.
+    Input:
+        references: The references of the document.
+        metadata_enricher: The metadata enricher to use.
+    Returns:
+        The total "is-referenced-by-count" of the citations in the sections.
+    """
+    metadata_enricher = metadata_enricher or CrossrefEnricher()
+
+    reference_by_index = {reference.index: reference for reference in references if reference.doi}
+
+    # Fetch the citations count for the cited references.
+    def fetch_citations_count(reference: Reference) -> tuple[int, int]:
+        try:
+            enriched = metadata_enricher.enrich(reference.doi or "")
+            citations_count = enriched.get("citations_count") or 0
+            return reference.index, citations_count
+        except (urllib.error.URLError, TimeoutError, ValueError, json.JSONDecodeError):
+            return reference.index, 0
+        except Exception:
+            return reference.index, 0
+            
+    if reference_by_index:
+        max_workers = min(8, len(reference_by_index))
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {
+                executor.submit(fetch_citations_count, reference): reference.index
+                for reference in reference_by_index.values()
+            }
+            for future in as_completed(futures):
+                reference_index, citations_count = future.result()
+                reference_by_index[reference_index].citations_count = citations_count
+    
+    # Count the number of citations and the citations reference count for each section.
+    for section in sections:
+        if section.citations:
+            section.number_of_citations = len(section.citations)
+            section.citations_reference_count = sum(
+                (reference_by_index.get(citation).citations_count or 0)
+                if reference_by_index.get(citation)
+                else 0
+                for citation in section.citations
+            )
 
 # =======================================================
 # Text Extraction Helper Functions
@@ -942,9 +1150,8 @@ def iterate_boxes(data: dict[str, Any]):
 
 
 def iterate_spans(box: dict[str, Any]):
-    """
-    Iterates over all spans in the box.
-    """
+    if not box.get("textlines"):
+        return
     for textline in box.get("textlines", []):
         for span in textline.get("spans", []):
             yield span
@@ -1159,3 +1366,43 @@ def is_filler_heading(text: str) -> bool:
     if len(text.split()) > 20:
         return True
     return False
+
+
+# =======================================================
+# Acronym Matching Helper Functions
+# =======================================================
+
+def acronym_matches_full_form(full_form: str, acronym: str) -> bool:
+    """
+    Checks if the acronym matches the full form (excluding stop words).
+    For example, RDF matches the full form "Resource Description Framework".
+    Or USA matches the full form "United States of America".
+    Returns:
+        True if the acronym matches the full form (excluding stop words), False otherwise.
+    """
+    words = re.findall(r"[A-Za-z]+", full_form)
+    significant_words = [w for w in words if w.lower() not in STOPWORDS]
+    initials = "".join(word[0] for word in significant_words)
+    # Return True if the first letter of each significant word is the same as the acronym.
+    return initials.lower() == acronym.lower()
+    
+def find_and_replace_acronyms(text: str, acronyms: LearnedAcronyms) -> str:
+    """
+    Finds and replaces acronyms in the text with the full form.
+    """
+    ACRONYM_REGEX = re.compile(
+    r"(?P<full_form>[A-Za-z][A-Za-z\s-]{2,}?)\s*\((?P<acronym>[A-Za-z][A-Za-z0-9-]{1,})\)"
+)
+    matches = ACRONYM_REGEX.findall(text)
+    for match in matches:
+        if acronym_matches_full_form(match[0], match[1]):
+            # Remove stop words form the start and end of the full form.
+            full_form = match[0].split()
+            full_form = [word for word in full_form if word.lower() not in STOPWORDS]
+            full_form = " ".join(full_form)
+
+            # Add the acronym and full form to the LearnedAcronyms object.
+            acronyms.add_acronym(match[1], full_form)
+    
+    # Replace any learned acronyms in the text with the full form.
+    return acronyms.replace_acronyms(text)

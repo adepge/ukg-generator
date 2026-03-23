@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.db.models import Q
 from rest_framework import parsers, status
 from rest_framework.response import Response
@@ -9,22 +10,55 @@ from .tasks import enqueue_document_ingestion
 from .utils import edge_opacity
 
 
+def parse_document_ids(raw_value):
+    if raw_value is None:
+        return None
+
+    document_ids = []
+    for chunk in raw_value.split(","):
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+        try:
+            document_ids.append(int(chunk))
+        except (TypeError, ValueError):
+            continue
+
+    return document_ids
+
+
 class UploadDocumentView(APIView):
     parser_classes = [parsers.MultiPartParser, parsers.FormParser]
 
     def post(self, request):
-        upload_file = request.FILES.get("file")
-        if upload_file is None:
-            return Response({"detail": "Expected file field 'file'."}, status=status.HTTP_400_BAD_REQUEST)
-        if not upload_file.name.lower().endswith(".pdf"):
+        upload_files = request.FILES.getlist("files")
+        if not upload_files:
+            upload_file = request.FILES.get("file")
+            if upload_file is not None:
+                upload_files = [upload_file]
+
+        if not upload_files:
+            return Response(
+                {"detail": "Expected file field 'file' or 'files'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        invalid_files = [upload_file.name for upload_file in upload_files if not upload_file.name.lower().endswith(".pdf")]
+        if invalid_files:
             return Response({"detail": "Only PDF files are supported."}, status=status.HTTP_400_BAD_REQUEST)
 
-        document = Document.objects.create(file=upload_file, status=Document.STATUS_QUEUED)
-        enqueue_document_ingestion(document.id)
+        with transaction.atomic():
+            documents = [
+                Document.objects.create(file=upload_file, status=Document.STATUS_QUEUED)
+                for upload_file in upload_files
+            ]
+            transaction.on_commit(lambda: enqueue_document_ingestion(documents[0].id))
+
         return Response(
             {
-                "document": DocumentSerializer(document).data,
-                "message": "Upload accepted. Processing started.",
+                "document": DocumentSerializer(documents[0]).data,
+                "documents": DocumentSerializer(documents, many=True).data,
+                "message": "Upload accepted. Processing queued.",
             },
             status=status.HTTP_202_ACCEPTED,
         )
@@ -53,15 +87,36 @@ class DocumentListView(APIView):
 
 
 class GraphView(APIView):
+    # Retrieves the graph data for the graph view.
     def get(self, request):
         triples = Triple.objects.all()
         q = request.GET.get("q", "").strip()
+        document_ids = parse_document_ids(request.GET.get("document_ids"))
+        try:
+            limit = int(request.GET.get("limit", 500))
+        except (TypeError, ValueError):
+            limit = 500
+        try:
+            min_confidence = float(request.GET.get("min_confidence", 0))
+        except (TypeError, ValueError):
+            min_confidence = 0
+        limit = max(1, min(limit, 100000))
+        min_confidence = max(0.0, min(min_confidence, 1.0))
         if q:
             triples = triples.filter(
                 Q(subject_label__icontains=q)
                 | Q(predicate_label__icontains=q)
                 | Q(object_label__icontains=q)
             )
+        if document_ids is not None:
+            if document_ids:
+                triples = triples.filter(evidence__document_id__in=document_ids).distinct()
+            else:
+                triples = triples.none()
+        triples = triples.filter(confidence__gte=min_confidence)
+        triples = triples.order_by("-confidence", "-support_count", "id")
+        total_triples = triples.count()
+        triples = triples[:limit]
 
         nodes_by_id: dict[str, dict] = {}
         edges: list[dict] = []
@@ -90,10 +145,23 @@ class GraphView(APIView):
                 }
             )
 
-        return Response({"nodes": list(nodes_by_id.values()), "edges": edges})
+        return Response(
+            {
+                "nodes": list(nodes_by_id.values()),
+                "edges": edges,
+                "meta": {
+                    "totalEdges": total_triples,
+                    "returnedEdges": len(edges),
+                    "limited": total_triples > len(edges),
+                    "documentIds": document_ids if document_ids is not None else None,
+                    "minConfidence": min_confidence,
+                },
+            }
+        )
 
 
 class SearchView(APIView):
+    # Performs a search on the graph based on the query and type.
     def get(self, request):
         query = request.GET.get("q", "").strip()
         search_type = request.GET.get("type", "entity").strip().lower()
@@ -111,6 +179,7 @@ class SearchView(APIView):
                 | Q(subject_norm__icontains=query)
                 | Q(object_norm__icontains=query)
             )
+        triples = triples.order_by("-confidence", "-support_count", "id")
 
         edge_ids = [f"triple-{item.id}" for item in triples]
         node_ids: set[str] = set()

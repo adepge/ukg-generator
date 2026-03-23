@@ -24,6 +24,24 @@ body {
   gap: 8px;
 }
 
+.results-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.results-table th,
+.results-table td {
+  padding: 8px;
+  border-top: 1px solid #e5e7eb;
+  text-align: left;
+  vertical-align: top;
+}
+
+.results-table th:last-child,
+.results-table td:last-child {
+  width: 120px;
+}
+
 input,
 select,
 button {
@@ -66,5 +84,63 @@ button {
 
 .graph-actions {
   display: flex;
+  gap: 8px;
+}
+
+.graph-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.graph-control-field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1 1 320px;
+}
+
+.graph-control-field select {
+  min-width: 140px;
+}
+
+.graph-confidence-control {
+  flex: 2 1 360px;
+}
+
+.graph-confidence-control input[type="range"] {
+  flex: 1;
+  min-width: 180px;
+  padding: 0;
+}
+
+.graph-meta {
+  margin: 8px 0 0;
+  color: #4b5563;
+  font-size: 14px;
+}
+
+.document-check-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.document-checklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.document-checklist li + li {
+  margin-top: 6px;
+}
+
+.document-check-item {
+  display: flex;
+  align-items: center;
   gap: 8px;
 }

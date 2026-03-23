@@ -21,6 +21,10 @@ const props = defineProps({
     type: Object,
     default: () => ({ nodeIds: [], edgeIds: [] }),
   },
+  searchActive: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const graphWrapperEl = ref(null);
@@ -43,9 +47,9 @@ const NODE_TEXT_COLOR = "#1f2937";
 const EDGE_BASE_OPACITY = 1;
 const EDGE_BASE_COLOR = "#146173";
 const HIGHLIGHT_COLOR = "#f97316";
-const DIM_OPACITY = 0.1;
 const NODE_SIZE = 3;
 const CURVED_EDGE_BASE_MAGNITUDE = 0.35;
+const MAX_EDGE_LABELS = 150;
 const drawCurvedEdgeLabel = createDrawCurvedEdgeLabel(DEFAULT_EDGE_CURVE_PROGRAM_OPTIONS);
 
 function getField(item, key, fallback = undefined) {
@@ -119,12 +123,14 @@ function applyBaseStyles() {
   graph.forEachNode((nodeId) => {
     graph.mergeNodeAttributes(nodeId, {
       color: NODE_BASE_COLOR,
+      hidden: false,
     });
   });
   graph.forEachEdge((edgeId) => {
     const baseOpacity = Number(graph.getEdgeAttribute(edgeId, "_baseOpacity") ?? EDGE_BASE_OPACITY);
     graph.mergeEdgeAttributes(edgeId, {
       color: rgbaFromHex(EDGE_BASE_COLOR, baseOpacity),
+      hidden: false,
       size: 2,
     });
   });
@@ -175,6 +181,27 @@ function showEdgeTooltip(edgeId, event) {
 
 function hideTooltip() {
   tooltip.value.visible = false;
+}
+
+function getLayoutConfig(nodeCount, edgeCount) {
+  if (nodeCount > 400 || edgeCount > 800) {
+    return {
+      forceAtlasIterations: 20,
+      noverlapIterations: 0,
+    };
+  }
+
+  if (nodeCount > 200 || edgeCount > 300) {
+    return {
+      forceAtlasIterations: 50,
+      noverlapIterations: 60,
+    };
+  }
+
+  return {
+    forceAtlasIterations: 100,
+    noverlapIterations: 100,
+  };
 }
 
 function renderGraph() {
@@ -229,18 +256,23 @@ function renderGraph() {
     });
   });
 
-  forceAtlas2.assign(graph, {
-    iterations: 150,
-    settings: forceAtlas2.inferSettings(graph),
-  });
+  const layoutConfig = getLayoutConfig(nodes.length, edges.length);
+  if (layoutConfig.forceAtlasIterations > 0) {
+    forceAtlas2.assign(graph, {
+      iterations: layoutConfig.forceAtlasIterations,
+      settings: forceAtlas2.inferSettings(graph),
+    });
+  }
 
-  noverlap.assign(graph, {
-    maxIterations: 200,
-    settings: {
-      margin: 8,
-      ratio: 1.2,
-    },
-  });
+  if (layoutConfig.noverlapIterations > 0) {
+    noverlap.assign(graph, {
+      maxIterations: layoutConfig.noverlapIterations,
+      settings: {
+        margin: 8,
+        ratio: 1.2,
+      },
+    });
+  }
 
   indexParallelEdgesIndex(graph);
   graph.forEachEdge((edgeId) => {
@@ -257,7 +289,7 @@ function renderGraph() {
     minCameraRatio: 0.05,
     maxCameraRatio: 10,
     labelDensity: 0.09,
-    renderEdgeLabels: true,
+    renderEdgeLabels: edges.length <= MAX_EDGE_LABELS,
     defaultEdgeType: "arrow",
     defaultDrawEdgeLabel: (context, edgeData, sourceData, targetData, settings) => {
       if (edgeData.type === "curvedArrow") {
@@ -295,58 +327,48 @@ function applyHighlight() {
   const nodeIds = new Set((props.highlight?.nodeIds || []).map(toKey).filter(Boolean));
   const edgeIds = new Set((props.highlight?.edgeIds || []).map(toKey).filter(Boolean));
 
-  if (!nodeIds.size && !edgeIds.size) {
-    applyBaseStyles();
-    applyHoveredEdgeStyles();
-    renderer.refresh();
-    return;
-  }
+  applyBaseStyles();
 
   const existingNodeIds = [...nodeIds].filter((id) => graph.hasNode(id));
   const existingEdgeIds = [...edgeIds].filter((id) => graph.hasEdge(id));
 
-  // If search highlights don't intersect this rendered graph, keep base styling.
-  if (!existingNodeIds.length && !existingEdgeIds.length) {
-    applyBaseStyles();
+  if (!props.searchActive) {
     applyHoveredEdgeStyles();
     renderer.refresh();
     return;
   }
 
+  const visibleNodeIds = new Set(existingNodeIds);
+  const visibleEdgeIds = new Set(existingEdgeIds);
+  existingEdgeIds.forEach((id) => {
+    if (graph.hasEdge(id)) {
+      const source = graph.source(id);
+      const target = graph.target(id);
+      if (source) {
+        visibleNodeIds.add(source);
+      }
+      if (target) {
+        visibleNodeIds.add(target);
+      }
+    }
+  });
+
   graph.forEachNode((nodeId) => {
     graph.mergeNodeAttributes(nodeId, {
-      color: rgbaFromHex(NODE_BASE_COLOR, DIM_OPACITY),
+      hidden: !visibleNodeIds.has(nodeId),
     });
   });
   graph.forEachEdge((edgeId) => {
     graph.mergeEdgeAttributes(edgeId, {
-      color: rgbaFromHex(EDGE_BASE_COLOR, DIM_OPACITY),
+      hidden: !visibleEdgeIds.has(edgeId),
       size: 2,
     });
   });
 
-  existingNodeIds.forEach((id) => {
-    if (graph.hasNode(id)) {
-      graph.mergeNodeAttributes(id, { color: HIGHLIGHT_COLOR });
-    }
-  });
-
-  existingEdgeIds.forEach((id) => {
-    if (graph.hasEdge(id)) {
-      graph.mergeEdgeAttributes(id, {
-        color: HIGHLIGHT_COLOR,
-        size: 2.5,
-      });
-      const source = graph.source(id);
-      const target = graph.target(id);
-      if (source) {
-        graph.mergeNodeAttributes(source, { color: HIGHLIGHT_COLOR });
-      }
-      if (target) {
-        graph.mergeNodeAttributes(target, { color: HIGHLIGHT_COLOR });
-      }
-    }
-  });
+  if (hoveredEdgeId && !visibleEdgeIds.has(hoveredEdgeId)) {
+    hoveredEdgeId = null;
+    hideTooltip();
+  }
 
   applyHoveredEdgeStyles();
   renderer.refresh();
@@ -370,6 +392,11 @@ watch(
   () => props.highlight,
   () => applyHighlight(),
   { deep: true }
+);
+
+watch(
+  () => props.searchActive,
+  () => applyHighlight()
 );
 </script>
 

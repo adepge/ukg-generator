@@ -37,13 +37,15 @@ class SectionSerializer(serializers.ModelSerializer):
             "parent_heading",
             "text",
             "page_numbers",
+            "number_of_citations",
+            "citations_reference_count",
         ]
 
 
 class ReferenceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Reference
-        fields = ["id", "ref_index", "text", "doi", "url", "pmid"]
+        fields = ["id", "ref_index", "text", "doi", "url", "pmid", "citations_count"]
 
 
 class TripleEvidenceSerializer(serializers.ModelSerializer):
