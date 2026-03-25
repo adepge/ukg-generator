@@ -13,7 +13,7 @@ import re
 from gliner import GLiNER
 from pathlib import Path
 from typing import NamedTuple
-from spacy.tokens import Span
+from spacy.tokens import Doc, Span
 from rdflib import Graph, Literal, Namespace, URIRef
 from extraction_module import Section
 
@@ -282,9 +282,8 @@ class TripleExtractor:
 
     # -- public API ---------------------------------------------------------
 
-    def extract_from_text(self, text: str, section: str = "") -> list[Triple]:
-        """Extract all triples from *text*, deduplicating by (sub, pred, obj)."""
-        doc = self.nlp(text)
+    def extract_from_doc(self, doc: Doc, section: str = "") -> list[Triple]:
+        """Extract all triples from a parsed spaCy Doc."""
         triples: list[Triple] = []
 
         for sent in doc.sents:
@@ -299,6 +298,11 @@ class TripleExtractor:
             ]
 
         return triples
+
+    def extract_from_text(self, text: str, section: str = "") -> list[Triple]:
+        """Extract all triples from *text*, deduplicating by (sub, pred, obj)."""
+        doc = self.nlp(text)
+        return self.extract_from_doc(doc, section=section)
 
     # Subject-Verb-Object extraction
     def extract_svo(self, sent: Span) -> list[Triple]:
@@ -548,7 +552,7 @@ class TripleExtractor:
     def remove_duplicates(self, triples: list[Triple]) -> list[Triple]:
         """
         Remove duplicates, keeping the first (highest-confidence) occurrence.
-        Boost the confidence of the existing triple by 0.005 for each duplicate.
+        Boost the confidence of the existing triple by 0.001 for each duplicate.
         For example, if there are 3 duplicates, the confidence will be boosted by 0.015.
         Input:
             triples: The list of triples to remove duplicates from.
@@ -652,7 +656,7 @@ class SpanRelationExtractor:
             head = rel["head"]["text"]
             tail = rel["tail"]["text"]
             pred = rel["relation"]
-            score = max(0.5, float(rel["score"]) / 2.0)
+            score = float(rel["score"]) * 0.75
             sub = self.normalize_span_text(head)
             obj = self.normalize_span_text(tail)
             if is_low_information_entity(sub) or is_low_information_entity(obj):
@@ -774,7 +778,7 @@ class OntologyFilter:
     def boost(
         self,
         triples: list[Triple],
-        boost_amount: float = 0.02,
+        boost_amount: float = 0.05,
         require_match: bool = False,
     ) -> list[Triple]:
         """
@@ -839,26 +843,28 @@ def generate_triples(
     extractor = TripleExtractor(model_name)
 
     all_triples: list[Triple] = []
-    for section in sections:
-        section_triples = extractor.extract_from_text(section.text, section=section.heading)
-        all_triples.extend(section_triples)
+    sentence_texts: list[str] = []
+    sentence_sections: list[str] = []
 
-    if use_span_extraction:
-        span_extractor = SpanRelationExtractor(model_name=span_model)
-        sentence_texts: list[str] = []
-        sentence_sections: list[str] = []
-        docs = extractor.nlp.pipe((section.text for section in sections), batch_size=1024)
-        for section, doc in zip(sections, docs):
+    # Run the spaCy pipeline on the sections once and then extract the triples from the docs.
+    docs = extractor.nlp.pipe((section.text for section in sections), batch_size=32)
+    for section, doc in zip(sections, docs):
+        all_triples.extend(extractor.extract_from_doc(doc, section=section.heading))
+        if use_span_extraction:
             for sent in doc.sents:
                 sentence_texts.append(sent.text)
                 sentence_sections.append(section.heading)
+
+    # If span extraction is enabled, extract the triples from the sentences using GLiNER-relex.
+    if use_span_extraction:
+        span_extractor = SpanRelationExtractor(model_name=span_model)
         all_triples.extend(
             span_extractor.extract_from_texts(sentence_texts, sections=sentence_sections)
         )
 
     all_triples = extractor.remove_duplicates(all_triples)
 
-    # Use the default ontology directory if no ontology directory is provided.
+    # If the ontology directory exists, use the ontology filter to boost the confidence of the triples.
     ont_dir = Path(ontology_dir) if ontology_dir else None
     if ont_dir is None:
         default_dir = Path(__file__).resolve().parent.parent / "resources" / "ontology"

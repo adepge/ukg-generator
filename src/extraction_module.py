@@ -260,7 +260,7 @@ def extract_json_data(file_path: str):
     extracted_json = pymupdf4llm.to_json(
         doc,
         write_images=False,
-        show_progress=True,
+        show_progress=False,
         use_ocr=False,
     )
 
