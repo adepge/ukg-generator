@@ -1,0 +1,24 @@
+# Direct dependencies for the lightweight VPS deployment (Django backend +
+# PDF extraction + Modal client). The GPU/ML stack lives in
+# requirements-modal.txt and runs on Modal — install this file on the VPS
+# instead of the full requirements.txt to avoid pulling ~3 GB of CUDA
+# wheels and the spaCy / GLiNER ecosystem.
+
+# Web stack
+Django==6.0.3
+djangorestframework==3.16.1
+django-cors-headers==4.9.0
+
+# PDF extraction (extraction_module.py)
+PyMuPDF==1.27.2
+pymupdf-layout==1.27.2
+pymupdf4llm==0.2.9
+lingua-language-detector==2.2.0
+
+# Crossref enrichment uses urllib (stdlib); requests is kept for any
+# downstream HTTP needs and as a pip resolver anchor.
+requests==2.32.5
+
+# Modal Python SDK — invokes the GPU pipeline from services.py
+modal>=0.74
+tqdm==4.67.1

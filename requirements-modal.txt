@@ -1,0 +1,11 @@
+# Direct dependencies for the Modal GPU container (modal_app.py).
+# Used by the image build in modal_app.py — not installed on the VPS.
+# Pip resolves the heavy transitive load (torch CUDA wheels, spaCy
+# ecosystem, HuggingFace stack) from these top-level pins.
+
+torch==2.10.0
+gliner==0.2.25
+spacy==3.8.11
+transformers==5.1.0
+rdflib==7.6.0
+tqdm==4.67.1

@@ -12,11 +12,9 @@ import os
 import re
 import threading
 import spacy
-import csv
 
-from functools import lru_cache
 from pathlib import Path
-from typing import NamedTuple
+from typing import Iterable, NamedTuple
 from gliner import GLiNER
 from spacy.tokens import Doc, Span
 from rdflib import Graph, Literal, Namespace, URIRef
@@ -764,27 +762,6 @@ class RDFSerializer:
 # Ontology-aware confidence boosting
 # ---------------------------------------------------------------------------
 
-@lru_cache(maxsize=8)
-# A frozen set is a set that is immutable (used to cache the ontology terms).
-def load_ontology_terms(ontology_list: tuple[str, ...]) -> frozenset[str]:
-    """
-    Load and cache ontology terms for a given list of ontology files.
-    Expects each line to be a single term.
-
-    Input:
-        ontology_list: The list of ontology files to load.
-    Returns:
-        A frozen set of ontology terms.
-    """
-    terms: set[str] = set()
-    for ontology_file in ontology_list:
-        with open(ontology_file, "r", encoding="utf-8", errors="ignore") as f:
-            for line in f:
-                term = line.strip().lower()
-                if term:
-                    terms.add(term)
-    return frozenset(terms)
-
 class OntologyFilter:
     """
     Loads domain term lists from resources/ontology/ and adjusts triple
@@ -795,8 +772,8 @@ class OntologyFilter:
     the (large) UMLS / SNOMED text files.
     """
 
-    def __init__(self, ontology_list: list[str] | tuple[str, ...]):
-        self.terms: frozenset[str] = load_ontology_terms(tuple(ontology_list))
+    def __init__(self, terms: Iterable[str]):
+        self.terms: frozenset[str] = terms if isinstance(terms, frozenset) else frozenset(terms)
 
     def normalize(self, text: str) -> str:
         return text.replace("_", " ").lower()
@@ -885,73 +862,6 @@ def is_invalid_string(text: str) -> bool:
         return True
     return False
 
-def load_blacklist_files(filepaths: list[str]) -> frozenset[tuple[str, str, str, str, str]]:
-    """
-    Load a blacklist from a csv file.
-    The headers of the CSV file are expected to be: term,category,rule,subject,object:
-        - term: The term to blacklist
-        - category: The category of the term
-        - rule: The rule to apply to the term (excl_only or excl)
-        - subject: Whether the term is a subject (1) or object (0)
-        - object: Whether the term is an object (1) or subject (0)
-    
-    Input:
-        filepath: The path to the blacklist csv file.
-    Returns:
-        A list of tuples, each containing the term, category, rule, subject, and object.
-    """
-    blacklists: list[frozenset[tuple[str, str, str, str, str]]] = []
-    for filepath in filepaths:
-        with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
-            reader = csv.reader(f)
-            # Ignore the header row.
-            next(reader)
-            blacklist = []
-            for row in reader:
-                term, category, rule, subject, object = row
-                blacklist.append((term, category, rule, subject, object))
-            blacklists.append(frozenset(blacklist))
-    return blacklists
-
-def build_blacklist_sets(blacklists: list[frozenset[tuple[str, str, str, str, str]]]):
-    """
-    Filter out triples that match any of the terms in the blacklist with specific rules.
-    Blacklist rules:
-        - excl: Exclude the triple if the blacklisted term is a substring of the subject or object.
-        - excl_only: Exclude when the subject or object equals the term (case-insensitive, spaces
-          normalized to underscores), not substring match.
-    
-    Input:
-        blacklists: The list of blacklists to use. To see the format of the blacklists, see load_blacklist_files().
-    Returns:
-        A tuple of lists, each containing the blacklisted terms for the subject and object.
-    """
-    subject_excl_str = []
-    object_excl_str = []
-    subject_excl_word = []
-    object_excl_word = []
-    
-    for blacklist in blacklists:
-        for term, category, rule, subject, object in blacklist:
-            if rule == "excl":
-                if subject == "1":
-                    subject_excl_str.append(term)
-                if object == "1":
-                    object_excl_str.append(term)
-            elif rule == "excl_only":
-                if subject == "1":
-                    subject_excl_word.append(term)
-                if object == "1":
-                    object_excl_word.append(term)
-    
-    # Remove duplicates from the blacklist sets.
-    subject_excl_str = list(set(subject_excl_str))
-    object_excl_str = list(set(object_excl_str))
-    subject_excl_word = list(set(subject_excl_word))
-    object_excl_word = list(set(object_excl_word))
-
-    return subject_excl_str, object_excl_str, subject_excl_word, object_excl_word
-
 def normalize_blacklist_entity(text: str) -> str:
     return text.strip().replace(" ", "_").lower()
 
@@ -1033,7 +943,7 @@ def generate_triples(
     base_namespace: str = "http://ukg-data.org/ukg#",
     output_path: str | None = None,
     output_format: str = "turtle",
-    ontology_files: list[str] = [],
+    ontology_terms: Iterable[str] | None = None,
     require_ontology_match: bool = False,
     use_span_extraction: bool = True,
     span_model: str = "knowledgator/gliner-relex-large-v0.5",
@@ -1050,12 +960,14 @@ def generate_triples(
         base_namespace: The RDF namespace URI.
         output_path: The path to the output file.
         output_format: The format of the output file.
-        ontology_files: The list of ontology files to use.
+        ontology_terms: An iterable of ontology terms (one term per entry, lowercase).
+                        Callers are responsible for reading ontology files and passing the
+                        merged term set; see pipeline_io.load_ontology_terms for the file loader.
         require_ontology_match: Whether to require ontology matches.
         use_span_extraction: Whether to use span extraction.
         span_model: The name of the span extraction model to use.
         blacklist_sets: The tuple of blacklist sets (subject_excl_str, object_excl_str, subject_excl_word, object_excl_word)
-                        see build_blacklist_sets() for more details.
+                        see pipeline_io.build_blacklist_sets for more details.
         entity_labels: The optional entity labels to pass to the span extractor.
                        When None, the extractor's own defaults are used.
         relation_labels: The optional relation labels to pass to the span extractor.
@@ -1094,8 +1006,7 @@ def generate_triples(
     all_triples = remove_duplicates(all_triples)
     all_triples = filter_triples(all_triples, blacklist_sets, stopwords)
 
-    # Check if the ontology directory exists and if not, use the default directory.
-    ont_filter = OntologyFilter(ontology_files) if ontology_files else None
+    ont_filter = OntologyFilter(ontology_terms) if ontology_terms else None
     if ont_filter:
         all_triples = ont_filter.boost(
             all_triples, require_match=require_ontology_match,

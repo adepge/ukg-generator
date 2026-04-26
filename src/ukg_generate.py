@@ -58,7 +58,12 @@ try:
     from src.generate_triples import generate_triples
 except ModuleNotFoundError:
     from extraction_module import extract_json_data, post_process_json_data
-    from generate_triples import generate_triples, load_blacklist_files, build_blacklist_sets
+    from generate_triples import generate_triples
+    from pipeline_io import (
+        load_blacklist_files,
+        build_blacklist_sets,
+        load_ontology_terms,
+    )
 
 
 def main(argv: list[str] | None = None):
@@ -200,11 +205,14 @@ def main(argv: list[str] | None = None):
         else:
             blacklist_sets = ([], [], [], [])
         
-        # Parse the ontology files
+        # Parse the ontology files into an in-memory term set. Keeping the term set
+        # as the boundary value (rather than file paths) means downstream callers
+        # — including out-of-process workers like Modal — don't need filesystem access.
         if args.ontology:
-            ontology_files = parse_ontology_files(args.ontology)
+            ontology_paths = parse_ontology_files(args.ontology)
+            ontology_terms = load_ontology_terms(tuple(ontology_paths))
         else:
-            ontology_files = []
+            ontology_terms = frozenset()
 
         # Parse the label file
         if args.label_file:
@@ -256,7 +264,7 @@ def main(argv: list[str] | None = None):
         base_namespace=args.namespace,
         output_path=output_path,
         output_format=args.format,
-        ontology_files=ontology_files,
+        ontology_terms=ontology_terms,
         blacklist_sets=blacklist_sets,
         entity_labels=entity_labels,
         relation_labels=relation_labels,
