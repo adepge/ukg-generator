@@ -1,83 +1,210 @@
-from __future__ import annotations
+"""
+The file contains the services (containing all the pipeline modules) for creating the knowledge graph from 
+the processed documents (PDFs).
+"""
 
 import sys
 from pathlib import Path
-
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
-
-from .models import Document, Reference, Section, SectionCitation, Triple, TripleEvidence
+from .models import (
+    Blacklist,
+    Document,
+    LabelList,
+    Ontology,
+    Reference,
+    Section,
+    SectionCitation,
+    Triple,
+    TripleEvidence,
+)
 from .utils import normalize_term, triple_key
 
 
 class PipelineImportError(RuntimeError):
+    """
+    Exception raised when the pipeline modules cannot be imported.
+    """
     pass
 
 
 class ExtractionPipelineService:
     """
-    Wraps legacy extraction and triple-generation modules for Django use.
+    Wrapper for KG generation pipeline (PDF extraction, post-processing, triple generation).
     """
-
     def __init__(self, src_dir: Path | None = None):
         self.src_dir = Path(src_dir or settings.UKG_SRC_DIR)
-
-    def _ensure_src_in_path(self) -> None:
+    
+    def import_pipeline_modules(self):
+        """
+        Import the pipeline modules from the src directory.
+        """
         src_text = str(self.src_dir)
         if src_text not in sys.path:
             sys.path.insert(0, src_text)
 
-    def _import_pipeline_modules(self):
-        self._ensure_src_in_path()
+        # Check if the pipeline modules are imported successfully
         try:
             from extraction_module import extract_json_data, post_process_json_data
-            from generate_triples import generate_triples
+            from generate_triples import generate_triples, build_blacklist_sets
         except ModuleNotFoundError as exc:
             raise PipelineImportError("Could not import legacy pipeline modules from src/") from exc
-        return extract_json_data, post_process_json_data, generate_triples
+        return extract_json_data, post_process_json_data, generate_triples, build_blacklist_sets
 
-    @transaction.atomic
+    @staticmethod
+    def build_db_blacklist_sets(build_blacklist_sets):
+        """
+        Build the blacklist sets from every currently-enabled Blacklist row
+        (terms materialised into the tuple format build_blacklist_sets expects).
+
+        Input:
+            build_blacklist_sets: The function to build the blacklist sets
+        Returns:
+            A tuple of lists, each containing the blacklisted terms for the subject and object
+        """
+        enabled_blacklists = Blacklist.objects.filter(
+            is_enabled=True
+        ).prefetch_related("terms")
+        raw_blacklists = []
+        for bl in enabled_blacklists:
+            # Convert the blacklist terms to a tuple of (term, category, exact_match, subject, object)
+            raw_blacklists.append(
+                frozenset(
+                    (
+                        term.term,
+                        term.category,
+                        "excl_only" if term.exact_match else "excl",
+                        "1" if term.subject else "0",
+                        "1" if term.object else "0",
+                    )
+                    for term in bl.terms.all()
+                )
+            )
+        return build_blacklist_sets(raw_blacklists)
+
+    @staticmethod
+    def db_ontology_files() -> list[str]:
+        """
+        Return the filesystem paths of every enabled ontology.
+        """
+        paths: list[str] = []
+        for ontology in Ontology.objects.filter(is_enabled=True):
+            resolved = ontology.resolved_path()
+            if resolved:
+                paths.append(resolved)
+        return paths
+
+    @staticmethod
+    def db_active_label_list():
+        """
+        Return (entity_labels, relation_labels) for the currently-active label
+        list, or (None, None) to let the extractor fall back to its defaults.
+        """
+        active = (
+            LabelList.objects.filter(is_active=True)
+            .prefetch_related("entity_labels", "relation_labels")
+            .first()
+        )
+        if active is None:
+            return None, None
+
+        entity_labels = {
+            el.label: el.description
+            for el in active.entity_labels.all()
+        }
+        relation_labels = [rl.label for rl in active.relation_labels.all()]
+        return (entity_labels or None), (relation_labels or None)
+
     def process_document(self, document: Document) -> dict[str, int]:
         """
-        Processes a document by extracting the JSON data, post-processing the data, and generating triples.
-        Input:
-            document: The document to process.
+        Process a document end-to-end (PDF extraction, post-processing, triple generation).
+
+        Args:
+            document: The document to process
         Returns:
-            A dictionary containing the number of sections, references, and triples.
+            A dictionary containing the number of sections, references, and triples
+        Raises:
+            RuntimeError: If the PDF extraction returns no data
         """
-        extract_json_data, post_process_json_data, generate_triples = self._import_pipeline_modules()
+        # Import the pipeline modules
+        extract_json_data, post_process_json_data, generate_triples, build_blacklist_sets = self.import_pipeline_modules()
+
+        # Load the blacklist/ontology/label configuration from the settings DB
+        blacklist_sets = self.build_db_blacklist_sets(build_blacklist_sets)
+        ontology_files = self.db_ontology_files()
+        entity_labels, relation_labels = self.db_active_label_list()
+
+        # Update the document status to processing
         document.status = Document.STATUS_PROCESSING
         document.error_message = ""
         document.save(update_fields=["status", "error_message", "updated_at"])
 
-        json_path = extract_json_data(document.file.path)
-        if json_path is None:
-            raise RuntimeError("PDF extraction returned no JSON output.")
+        # Extract the JSON data from the PDF
+        json_path, pdf_data = extract_json_data(document.file.path, write_json=False)
+        if pdf_data is None:
+            raise RuntimeError("PDF extraction returned no data.")
 
-        extraction_result = post_process_json_data(str(json_path), enrich_metadata=True, enrich_references=True)
+        # Post-process the JSON data and enrich the metadata and references
+        extraction_result = post_process_json_data(
+            json_path=str(json_path) if json_path else None,
+            data=pdf_data,
+            enrich_metadata=True,
+            enrich_references=True,
+            output_basename=Path(document.file.name).stem,
+        )
 
-        document.title = extraction_result.metadata.title or document.title
-        document.doi = extraction_result.metadata.doi
-        document.journal = extraction_result.metadata.journal
-        document.article_type = extraction_result.metadata.article_type
-        document.received_date = extraction_result.metadata.received_date
-        document.accepted_date = extraction_result.metadata.accepted_date
-        document.published_date = extraction_result.metadata.published_date
+        # Generate triples from the sections
+        triples = generate_triples(
+            extraction_result.sections,
+            model_name="en_core_web_lg",
+            use_span_extraction=True,
+            blacklist_sets=blacklist_sets,
+            ontology_files=ontology_files,
+            entity_labels=entity_labels,
+            relation_labels=relation_labels,
+        )
 
-        # Set the citations count for the document.
-        if extraction_result.metadata.citations_count is not None:
-            document.citations_count = extraction_result.metadata.citations_count
-        else:
-            document.citations_count = 0
-        
-        document.authors = extraction_result.metadata.authors
-        document.metadata_raw = extraction_result.metadata.raw
+        # Persist the extraction result and emitted triples atomically
+        with transaction.atomic():
+            return self.persist_extraction(
+                document=document,
+                extraction_result=extraction_result,
+                triples=triples,
+            )
+
+    def persist_extraction(
+        self,
+        document: Document,
+        extraction_result,
+        triples,
+    ) -> dict[str, int]:
+        """
+        Bulk-persist the extraction result and generated triples.
+
+        Args:
+            document: The Document object to save the extraction result and triples for
+            extraction_result: The extraction result data to process
+            triples: The list of Triple objects to save
+        Returns:
+            A dictionary containing the number of sections, references, and triples saved
+        """
+        metadata = extraction_result.metadata
+        document.title = metadata.title or document.title
+        document.doi = metadata.doi
+        document.journal = metadata.journal
+        document.article_type = metadata.article_type
+        document.received_date = metadata.received_date
+        document.accepted_date = metadata.accepted_date
+        document.published_date = metadata.published_date
+        document.citations_count = metadata.citations_count or 0
+        document.authors = metadata.authors
+        document.metadata_raw = metadata.raw
         document.save()
 
-        section_map: dict[str, Section] = {}
-        for sec in extraction_result.sections:
-            section_obj = Section.objects.create(
+        # Bulk-create all sections for this document in a single round-trip.
+        section_objs = [
+            Section(
                 document=document,
                 heading=sec.heading,
                 path=str(sec.path) if sec.path else sec.heading,
@@ -85,114 +212,184 @@ class ExtractionPipelineService:
                 parent_heading=sec.parent_heading,
                 text=sec.text,
                 page_numbers=sec.page_numbers,
+                number_of_citations=sec.number_of_citations,
+                citations_reference_count=sec.citations_reference_count,
             )
+            for sec in extraction_result.sections
+        ]
+        Section.objects.bulk_create(section_objs)
+
+        created_sections = list(
+            Section.objects.filter(document=document).order_by("id")
+        )
+
+        # Create a map of the sections by heading (this maps the section heading to the corresponding Section object)
+        section_map = {}
+        for sec, section_obj in zip(extraction_result.sections, created_sections):
             section_map[sec.heading] = section_obj
 
-        references_by_index: dict[int, Reference] = {}
-        for ref in extraction_result.references:
-            if ref.citations_count is not None:
-                citations_count = ref.citations_count
-            else:
-                citations_count = 0
-            reference_obj = Reference.objects.create(
+        # Bulk-create references
+        reference_objs = [
+            Reference(
                 document=document,
                 ref_index=ref.index,
                 text=ref.text,
                 doi=ref.doi,
                 url=ref.url,
                 pmid=ref.pmid,
-                citations_count=citations_count,
+                citations_count=ref.citations_count or 0,
             )
-            if ref.index is not None:
-                references_by_index[int(ref.index)] = reference_obj
+            for ref in extraction_result.references
+        ]
+        if reference_objs:
+            Reference.objects.bulk_create(reference_objs)
+            # Re-fetch to get IDs for citation links
+            created_references = list(
+                Reference.objects.filter(document=document).order_by("id")
+            )
+            # Create a map of the references by index (in the document)
+            references_by_index = {}
+            for ref, reference_obj in zip(extraction_result.references, created_references):
+                if ref.index is not None:
+                    references_by_index[int(ref.index)] = reference_obj
+        else:
+            references_by_index = {}
 
+        # Bulk-create section-citation links, skipping rows that already exist
+        citation_links = []
         for sec in extraction_result.sections:
             section_obj = section_map.get(sec.heading)
             if not section_obj or not sec.citations:
                 continue
+            # Deduplicate citations within the same section
+            seen_refs = set()
             for citation_index in sec.citations:
                 ref_obj = references_by_index.get(int(citation_index))
-                if ref_obj:
-                    SectionCitation.objects.get_or_create(section=section_obj, reference=ref_obj)
+                if not ref_obj or ref_obj.id in seen_refs:
+                    continue
+                seen_refs.add(ref_obj.id)
+                citation_links.append(
+                    SectionCitation(section=section_obj, reference=ref_obj)
+                )
+        if citation_links:
+            # Bulk-create the citation links
+            SectionCitation.objects.bulk_create(citation_links, ignore_conflicts=True)
 
-        triples = generate_triples(
-            extraction_result.sections,
-            model_name="en_core_web_lg",
-            use_span_extraction=True,
-        )
+        # Triples are grouped by normalized key so each triple only needs to be persisted once
+        triples_persisted = 0
+        grouped = {}
         for triple in triples:
-            self.upsert_triple(triple=triple, document=document, section_map=section_map)
+            sub_norm = normalize_term(triple.sub)
+            pred_norm = normalize_term(triple.pred)
+            obj_norm = normalize_term(triple.obj)
+            if not sub_norm or not pred_norm or not obj_norm:
+                continue
+            key = triple_key(sub_norm, pred_norm, obj_norm)
+            grouped.setdefault(key, []).append(
+                (triple, sub_norm, pred_norm, obj_norm)
+            )
 
+        evidence_rows = []
+        now = timezone.now()
+        for key, occurrences in grouped.items():
+            # Pick the highest-confidence occurrence
+            triple, sub_norm, pred_norm, obj_norm = max(
+                occurrences, key=lambda item: float(item[0].conf)
+            )
+            section_obj = section_map.get(triple.section or "")
+            confidence = self.compute_triple_confidence(
+                document=document, section_obj=section_obj, triple=triple,
+            )
+
+            triple_obj, created = Triple.objects.get_or_create(
+                key=key,
+                defaults={
+                    "subject_label": triple.sub,
+                    "predicate_label": triple.pred,
+                    "object_label": triple.obj,
+                    "subject_norm": sub_norm,
+                    "predicate_norm": pred_norm,
+                    "object_norm": obj_norm,
+                    "confidence": confidence,
+                    "support_count": 1,
+                    "last_seen": now,
+                },
+            )
+            if not created:
+                # Update the confidence of the triple based on the existing confidence and the new confidence (biased towards existing confidence)
+                triple_obj.confidence = min(
+                    1.0, (triple_obj.confidence * 0.7 + confidence * 0.3) + 0.01
+                )
+                triple_obj.support_count += 1
+                triple_obj.last_seen = now
+                triple_obj.save(update_fields=["confidence", "support_count", "last_seen"])
+
+            # For all occurrences of the triple, create a TripleEvidence object
+            # This is because the confidence of the triple may be contributed by multiple documents or sections
+            # This is also used to filter triples by document IDs in the GraphView
+            for occ_triple, occ_sub, occ_pred, occ_obj in occurrences:
+                occ_section_obj = section_map.get(occ_triple.section or "")
+                occ_confidence = self.compute_triple_confidence(
+                    document=document,
+                    section_obj=occ_section_obj,
+                    triple=occ_triple,
+                )
+                evidence_rows.append(
+                    TripleEvidence(
+                        triple=triple_obj,
+                        document=document,
+                        section=occ_section_obj,
+                        confidence=occ_confidence,
+                        source_method=(occ_triple.source or "")[:64],
+                    )
+                )
+            triples_persisted += 1
+
+        if evidence_rows:
+            # Bulk-create the TripleEvidence objects
+            TripleEvidence.objects.bulk_create(evidence_rows, batch_size=500)
+
+        # Update the document status to completed
         document.status = Document.STATUS_COMPLETED
         document.save(update_fields=["status", "updated_at"])
         return {
+            # Return the number of sections, references, and triples processed
             "sections": len(extraction_result.sections),
             "references": len(extraction_result.references),
-            "triples": len(triples),
+            "triples": triples_persisted,
         }
 
-    def upsert_triple(self, triple, document: Document, section_map: dict[str, Section]) -> Triple | None:
-        sub_norm = normalize_term(triple.sub)
-        pred_norm = normalize_term(triple.pred)
-        obj_norm = normalize_term(triple.obj)
-        if not sub_norm or not pred_norm or not obj_norm:
-            return None
-        key = triple_key(sub_norm, pred_norm, obj_norm)
+    @staticmethod
+    def compute_triple_confidence(*, document, section_obj, triple) -> float:
+        """
+        Compute the confidence of a triple based on the document and section.
 
-        # Get the section object for the triple.
-        section_obj = section_map.get(triple.section or "")
-        if section_obj:
-            # Count the number of citations and the citations reference count for the section.
+        Args:
+            document: The document that the triple belongs to
+            section_obj: The section that the triple belongs to
+            triple: The triple to compute the confidence of
+        Returns:
+            The confidence of the triple (0.0 to 1.0)
+        """
+        # Fetch the number of citations and citations reference count for the section
+        if section_obj is not None:
             section_number_of_citations = section_obj.number_of_citations
             section_citations_reference_count = section_obj.citations_reference_count
         else:
             section_number_of_citations = 0
             section_citations_reference_count = 0
-        
-        # Calculate the confidence value boost based on the number of citations (of the source document) and the citations reference count (of the source section).
+
+        # Compute the average number of citations per section
         document_citations_count = document.citations_count
         if section_number_of_citations == 0:
             section_citation_average = 0
         else:
             section_citation_average = section_citations_reference_count / section_number_of_citations
 
-        # For example, if the section citation average is 1000, the boost will be 0.05.
+        # Compute the boost score based on number of citations in the associated section and the document
         section_boost = max(0.1, section_citation_average / 20000)
-        # For example, if the document citations count is 1000, the boost will be 0.1.
         document_boost = max(0.2, document_citations_count / 10000)
         total_boost = section_boost + document_boost
 
-        # Calculate the confidence for the triple.
-        confidence = max(0.0, min(1.0, float(triple.conf) + total_boost))
-
-        # Upsert the triple.
-        triple_obj, created = Triple.objects.get_or_create(
-            key=key,
-            defaults={
-                "subject_label": triple.sub,
-                "predicate_label": triple.pred,
-                "object_label": triple.obj,
-                "subject_norm": sub_norm,
-                "predicate_norm": pred_norm,
-                "object_norm": obj_norm,
-                "confidence": confidence,
-                "support_count": 1,
-                "last_seen": timezone.now(),
-            },
-        )
-
-        if not created:
-            triple_obj.confidence = min(1.0, (triple_obj.confidence * 0.7 + confidence * 0.3) + 0.01)
-            triple_obj.support_count += 1
-            triple_obj.last_seen = timezone.now()
-            triple_obj.save(update_fields=["confidence", "support_count", "last_seen"])
-
-
-        TripleEvidence.objects.create(
-            triple=triple_obj,
-            document=document,
-            section=section_obj,
-            confidence=confidence,
-            source_method=(triple.source or "")[:64],
-        )
-        return triple_obj
+        # Return the confidence of the triple based on the boost score and the confidence of the triple
+        return max(0.0, min(1.0, float(triple.conf) + total_boost))

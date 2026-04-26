@@ -1,3 +1,33 @@
+"""
+Dataset Cleaning Module
+
+This module is used to clean the UMLS, SNOWMED, and CADRO datasets.
+It takes a dataset file and cleans it into a list of terms as a .txt file.
+
+The directory structure used for this module is as follows:
+datasets
+├── CADRO
+│   └── ontology.json
+├── SNOWMEDCT
+│   ├── Full
+│   │   ├── Refset
+│   │   │   ├── Content
+│   │   │   ├── Language
+│   │   │   ├── Map
+│   │   │   └── Metadata
+│   │   └── Terminology
+│   │       ├── sct2_Concept_Full_INT_20260101.txt
+│   │       ├── sct2_Description_Full-en_INT_20260101.txt
+│   │       └── ...
+│   └── Readme_en_20260101.txt
+└── UMLS
+    └── MRCONSO.RRF
+
+1. CADRO ontology.json was transcribed by hand from the CADRO website (https://iadrp.nia.nih.gov/about/cadro)
+2. SNOWMED CT was downloaded from the SNOWMED CT website - requires UMLS license (https://www.nlm.nih.gov/healthit/snomedct/international.html)
+3. UMLS (MRCONSO.RRF) was downloaded from the UMLS website (https://www.nlm.nih.gov/research/umls/licensedcontent/umlsknowledgesources.html)
+"""
+
 import json
 import os
 from tqdm import tqdm
@@ -158,7 +188,6 @@ def cleanSNOWMED(dataset_file: str, output_file: str):
     """
     Cleans the SNOWMED dataset file.
     """
-    
     with open(dataset_file, "r") as f: 
     
         terms = []
@@ -197,18 +226,19 @@ def cleanSNOWMED(dataset_file: str, output_file: str):
 
 if __name__ == "__main__":
     clean = "snowmed"
+    current_dir = os.path.dirname(os.path.abspath(__file__))
     if clean == "umls":
-        dataset_file = "/home/adamg/Documents/Repositories/ukg-generator/datasets/UMLS/MRCONSO.RRF"
-        output_folder = "/home/adamg/Documents/Repositories/ukg-generator/resources/ontology/umls"
+        dataset_file = os.path.join(current_dir, "datasets/UMLS/MRCONSO.RRF")
+        output_folder = os.path.join(current_dir, "resources/ontology/umls")
         cleanUMLS(dataset_file, output_folder)
         print("UMLS dataset cleaned successfully")
     elif clean == "cadro":
-        dataset_file = "/home/adamg/Documents/Repositories/ukg-generator/datasets/CADRO/ontology.json"
-        output_file = "/home/adamg/Documents/Repositories/ukg-generator/resources/ontology/cadro/terms.txt"
+        dataset_file = os.path.join(current_dir, "datasets/CADRO/ontology.json")
+        output_file = os.path.join(current_dir, "resources/ontology/cadro/terms.txt")
         cleanCADRO(dataset_file, output_file)
         print("CADRO dataset cleaned successfully")
     elif clean == "snowmed":
-        dataset_file = "/home/adamg/Documents/Repositories/ukg-generator/datasets/SNOWMEDCT/Full/Terminology/sct2_Description_Full-en_INT_20260101.txt"
-        output_file = "/home/adamg/Documents/Repositories/ukg-generator/resources/ontology/snowmedct/terms.txt"
+        dataset_file = os.path.join(current_dir, "datasets/SNOWMEDCT/Full/Terminology/sct2_Description_Full-en_INT_20260101.txt")
+        output_file = os.path.join(current_dir, "resources/ontology/snowmedct/terms.txt")
         cleanSNOWMED(dataset_file, output_file)
         print("SNOWMEDCT dataset cleaned successfully")

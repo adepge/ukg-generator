@@ -1,0 +1,24 @@
+{
+    "entity_labels": {
+        "person": "A person, individual, or human being.",
+        "organization": "An organization, institution, or group of people.",
+        "location": "A location, place, or geographical area.",
+        "event": "An event, occurrence, or happening.",
+        "product": "A product, item, or object.",
+        "concept": "A concept, idea, or notion.",
+        "method": "A method, technique, or process.",
+        "other": "Other entities that do not fit into the other categories."
+    },
+    "relation_labels": [
+        "linked to",
+        "part of",
+        "creates",
+        "causes",
+        "uses",
+        "describes",
+        "measures",
+        "evaluates",
+        "tests",
+        "classifies"
+    ]
+}

@@ -3,7 +3,7 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 
-
+# Settings for Django admin interface
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/", include("kg.urls")),

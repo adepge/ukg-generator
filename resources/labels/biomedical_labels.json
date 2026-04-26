@@ -1,0 +1,34 @@
+{
+    "entity_labels": {
+        "disease": "A disease, disorder, syndrome, or diagnosed medical condition.",
+        "symptom": "A symptom, sign, complaint, or clinical manifestation experienced by a patient.",
+        "risk factor": "An exposure, comorbidity, trait, or circumstance associated with higher or lower disease risk.",
+        "biomarker": "A measurable biological, imaging, or laboratory marker used to indicate disease or physiology.",
+        "drug": "A medication, pharmaceutical compound, or administered therapeutic substance.",
+        "treatment": "A treatment, intervention, therapy, procedure, or clinical management strategy.",
+        "gene": "A gene, allele, genetic variant, mutation, or named genomic locus.",
+        "anatomy": "A body part, organ, tissue, cell type, brain region, or anatomical structure.",
+        "demographic": "A population attribute or subgroup such as age, sex, ethnicity, education, or socioeconomic status.",
+        "lifestyle": "A lifestyle behavior or habit such as exercise, diet, smoking, alcohol use, or sleep.",
+        "outcome": "A clinical, cognitive, functional, or survival outcome, endpoint, or measured result.",
+        "study": "A study, trial, cohort, dataset, or other research design or evidence source."
+    },
+    "relation_labels": [
+        "risk factor of",
+        "causes",
+        "leads to",
+        "treated by",
+        "helps with",
+        "gives",
+        "describes",
+        "prevents",
+        "improves",
+        "worsens",
+        "associated with",
+        "predicts",
+        "measured by",
+        "affects",
+        "part of",
+        "occurs in"
+    ]
+}

@@ -1,0 +1,711 @@
+term,category,rule,subject,object
+access,generic,excl_only,1,1
+al,abbreviation,excl_only,1,1
+analyses,academic_syntax,excl_only,1,1
+analysis,academic_syntax,excl_only,1,1
+approach,academic_syntax,excl_only,1,1
+area,statistics,excl_only,1,1
+association,academic_syntax,excl_only,1,1
+associations,academic_syntax,excl_only,1,1
+audio,modal,excl_only,1,1
+baseline,academic_syntax,excl_only,1,1
+baseline data,academic_syntax,excl_only,1,1
+basic,generic,excl_only,1,1
+best,comparator,excl_only,1,1
+case,generic,excl_only,1,1
+cases,generic,excl_only,1,1
+cause,generic,excl_only,1,1
+chart,modal,excl_only,1,1
+charts,modal,excl_only,1,1
+core,generic,excl_only,1,1
+current research,academic_syntax,excl_only,1,1
+current results,academic_syntax,excl_only,1,1
+current study,academic_syntax,excl_only,1,1
+currently,academic_syntax,excl_only,1,1
+data,academic_syntax,excl_only,1,1
+data analysis,academic_syntax,excl_only,1,1
+dataset,academic_syntax,excl_only,1,1
+datasets,academic_syntax,excl_only,1,1
+details,generic,excl_only,1,1
+difference,comparator,excl_only,1,1
+differences,comparator,excl_only,1,1
+effect,generic,excl_only,1,1
+effect size,generic,excl_only,1,1
+effects,generic,excl_only,1,1
+et,abbreviation,excl_only,1,1
+example,generic,excl_only,1,1
+examples,generic,excl_only,1,1
+exception,generic,excl_only,1,1
+exceptions,generic,excl_only,1,1
+factor,generic,excl_only,1,1
+factors,generic,excl_only,1,1
+feature,generic,excl_only,1,1
+features,generic,excl_only,1,1
+fig,academic_syntax,excl_only,1,1
+figs,academic_syntax,excl_only,1,1
+figure,academic_syntax,excl_only,1,1
+figures,academic_syntax,excl_only,1,1
+final,comparator,excl_only,1,1
+finding,academic_syntax,excl_only,1,1
+findings,academic_syntax,excl_only,1,1
+future,academic_syntax,excl_only,1,1
+future research,academic_syntax,excl_only,1,1
+future risk,academic_syntax,excl_only,1,1
+future studies,academic_syntax,excl_only,1,1
+graph,academic_syntax,excl_only,1,1
+graphs,academic_syntax,excl_only,1,1
+low,comparator,excl_only,1,1
+high,comparator,excl_only,1,1
+higher,comparator,excl_only,1,1
+image,modal,excl_only,1,1
+images,modal,excl_only,1,1
+impact,generic,excl_only,1,1
+impacts,generic,excl_only,1,1
+impacted,generic,excl_only,1,1
+improve,comparator,excl_only,1,1
+improved,comparator,excl_only,1,1
+index,academic_syntax,excl_only,1,1
+indices,academic_syntax,excl_only,1,1
+influence,generic,excl_only,1,1
+information,generic,excl_only,1,1
+initial,comparator,excl_only,1,1
+item,generic,excl_only,1,1
+items,generic,excl_only,1,1
+large,comparator,excl_only,1,1
+lower,comparator,excl_only,1,1
+mean,statistics,excl_only,1,1
+means,generic,excl_only,1,1
+measure,academic_syntax,excl_only,1,1
+measures,academic_syntax,excl_only,1,1
+medium,comparator,excl_only,1,1
+method,academic_syntax,excl_only,1,1
+methods,academic_syntax,excl_only,1,1
+metric,academic_syntax,excl_only,1,1
+metrics,academic_syntax,excl_only,1,1
+model,academic_syntax,excl_only,1,1
+models,academic_syntax,excl_only,1,1
+moment,temporal,excl_only,1,1
+need,generic,excl_only,1,1
+object,modal,excl_only,1,1
+odds,generic,excl_only,1,1
+other hand,phrases,excl_only,1,1
+outcome,academic_syntax,excl_only,1,1
+outcome measure,academic_syntax,excl_only,1,1
+outcome variable,academic_syntax,excl_only,1,1
+outcomes,academic_syntax,excl_only,1,1
+people,generic,excl_only,1,1
+percentile,statistics,excl_only,1,1
+person,generic,excl_only,1,1
+photo,modal,excl_only,1,1
+picture,modal,excl_only,1,1
+plot,statistics,excl_only,1,1
+plots,statistics,excl_only,1,1
+point,statistics,excl_only,1,1
+points,statistics,excl_only,1,1
+predict,academic_syntax,excl_only,1,1
+present,academic_syntax,excl_only,1,1
+present findings,academic_syntax,excl_only,1,1
+present study,academic_syntax,excl_only,1,1
+prevalent,academic_syntax,excl_only,1,1
+prevalence,academic_syntax,excl,1,1
+prevalences,academic_syntax,excl,1,1
+previous,academic_syntax,excl_only,1,1
+previous findings,academic_syntax,excl_only,1,1
+previous research,academic_syntax,excl_only,1,1
+prior research,academic_syntax,excl_only,1,1
+prior studies,academic_syntax,excl_only,1,1
+problem,academic_syntax,excl_only,1,1
+relationship,academic_syntax,excl_only,1,1
+relationships,academic_syntax,excl_only,1,1
+research,academic_syntax,excl_only,1,1
+research results,academic_syntax,excl_only,1,1
+researchers,academic_syntax,excl_only,1,1
+result,academic_syntax,excl_only,1,1
+results,academic_syntax,excl_only,1,1
+risk,academic_syntax,excl_only,1,1
+risk factor,academic_syntax,excl_only,1,1
+risks,academic_syntax,excl_only,1,1
+roles,generic,excl_only,1,1
+sample,academic_syntax,excl_only,1,1
+samples,academic_syntax,excl_only,1,1
+scale,generic,excl_only,1,1
+scales,generic,excl_only,1,1
+science,generic,excl_only,1,1
+score,generic,excl_only,1,1
+scores,generic,excl_only,1,1
+self,generic,excl_only,1,1
+service,generic,excl_only,1,1
+set,statistics,excl_only,1,1
+similar,comparator,excl_only,1,1
+small,comparator,excl_only,1,1
+specific,generic,excl_only,1,1
+state,generic,excl_only,1,1
+step,academic_syntax,excl_only,1,1
+steps,academic_syntax,excl_only,1,1
+subject,academic_syntax,excl_only,1,1
+subjects,academic_syntax,excl_only,1,1
+sum,statistics,excl_only,1,1
+supporting,academic_syntax,excl_only,1,1
+table,modal,excl_only,1,1
+tables,modal,excl_only,1,1
+targeting,academic_syntax,excl_only,1,1
+test,academic_syntax,excl_only,1,1
+test results,academic_syntax,excl_only,1,1
+tests,academic_syntax,excl_only,1,1
+threshold,statistics,excl_only,1,1
+tool,generic,excl_only,1,1
+tools,generic,excl_only,1,1
+tries,generic,excl_only,1,1
+type,generic,excl_only,1,1
+types,generic,excl_only,1,1
+validated,academic_syntax,excl_only,1,1
+variable,statistics,excl_only,1,1
+variables,statistics,excl_only,1,1
+video,modal,excl_only,1,1
+view,generic,excl_only,1,1
+worst,comparator,excl_only,1,1
+two-thirds,statistics,excl_only,1,1
+one-third,statistics,excl_only,1,1
+general,generic,excl_only,1,1
+generalise,academic_syntax,excl_only,1,1
+generalize,academic_syntax,excl_only,1,1
+generalisability,academic_syntax,excl_only,1,1
+generalizability,academic_syntax,excl_only,1,1
+fluctuations,academic_syntax,excl_only,1,1
+likelihood,comparator,excl_only,1,1
+intersectionality,statistics,excl_only,1,1
+verbal,modal,excl_only,1,1
+greater,comparator,excl_only,1,1
+lesser,comparator,excl_only,1,1
+mask,generic,excl_only,1,1
+likely,comparator,excl_only,1,1
+more likely,comparator,excl_only,1,1
+less likely,comparator,excl_only,1,1
+covariates,academic_syntax,excl_only,1,1
+incidence,academic_syntax,excl,1,1
+proportion,statistics,excl,1,1
+loss,generic,excl_only,1,1
+gain,generic,excl_only,1,1
+time,temporal,excl_only,1,1
+day,temporal,excl_only,1,1
+days,temporal,excl_only,1,1
+week,temporal,excl_only,1,1
+weeks,temporal,excl_only,1,1
+month,temporal,excl_only,1,1
+months,temporal,excl_only,1,1
+year,temporal,excl_only,1,1
+years,temporal,excl_only,1,1
+comparison,academic_syntax,excl_only,1,1
+comparisons,academic_syntax,excl_only,1,1
+advantage,generic,excl_only,1,0
+advantages,generic,excl_only,1,0
+disadvantage,generic,excl_only,1,0
+disadvantages,generic,excl_only,1,0
+curves,statistics,excl_only,1,1
+higher prevalence,academic_syntax,excl_only,1,1
+lower prevalence,academic_syntax,excl_only,1,1
+lower odds,comparator,excl_only,1,1
+higher odds,comparator,excl_only,1,1
+greater odds,comparator,excl_only,1,1
+lower odd,comparator,excl_only,1,1
+higher odd,comparator,excl_only,1,1
+greater odd,comparator,excl_only,1,1
+lower rates,comparator,excl_only,1,1
+higher rates,comparator,excl_only,1,1
+lower rate,comparator,excl_only,1,1
+higher rate,comparator,excl_only,1,1
+lower level,comparator,excl_only,1,1
+higher level,comparator,excl_only,1,1
+lower levels,comparator,excl_only,1,1
+higher levels,comparator,excl_only,1,1
+greater level,comparator,excl_only,1,1
+level,generic,excl_only,1,1
+levels,generic,excl_only,1,1
+higher percentage,comparator,excl_only,1,1
+lower percentage,comparator,excl_only,1,1
+greater percentage,comparator,excl_only,1,1
+overall,generic,excl_only,1,1
+run,generic,excl_only,1,1
+line,statistics,excl_only,1,1
+discussion,academic_syntax,excl_only,1,1
+mix,generic,excl_only,1,1
+notion,academic_syntax,excl_only,1,1
+quartile,statistics,excl,1,0
+contrast,comparator,excl_only,1,1
+higher end,comparator,excl_only,1,1
+lower end,comparator,excl_only,1,1
+higher amount,comparator,excl_only,1,1
+higher amounts,comparator,excl_only,1,1
+lower amount,comparator,excl_only,1,1
+lower amounts,comparator,excl_only,1,1
+link,generic,excl_only,1,1
+higher frequency,comparator,excl_only,1,1
+lower frequency,comparator,excl_only,1,1
+representation,academic_syntax,excl,1,1
+higher number,comparator,excl_only,1,1
+lower number,comparator,excl_only,1,1
+our,phrases,excl,1,1
+we,phrases,excl,1,1
+this,phrases,excl,1,1
+significant,academic_syntax,excl_only,1,1
+significance,academic_syntax,excl_only,1,1
+afghanistan,geography,excl_only,1,1
+albania,geography,excl_only,1,1
+algeria,geography,excl_only,1,1
+andorra,geography,excl_only,1,1
+angola,geography,excl_only,1,1
+antigua and barbuda,geography,excl_only,1,1
+argentina,geography,excl_only,1,1
+armenia,geography,excl_only,1,1
+australia,geography,excl_only,1,1
+austria,geography,excl_only,1,1
+azerbaijan,geography,excl_only,1,1
+bahamas,geography,excl_only,1,1
+bahrain,geography,excl_only,1,1
+bangladesh,geography,excl_only,1,1
+barbados,geography,excl_only,1,1
+belarus,geography,excl_only,1,1
+belgium,geography,excl_only,1,1
+belize,geography,excl_only,1,1
+benin,geography,excl_only,1,1
+bhutan,geography,excl_only,1,1
+bolivia,geography,excl_only,1,1
+bosnia herzegovina,geography,excl_only,1,1
+botswana,geography,excl_only,1,1
+brazil,geography,excl_only,1,1
+brunei,geography,excl_only,1,1
+bulgaria,geography,excl_only,1,1
+burkina,geography,excl_only,1,1
+burma,geography,excl_only,1,1
+burundi,geography,excl_only,1,1
+cambodia,geography,excl_only,1,1
+cameroon,geography,excl_only,1,1
+canada,geography,excl_only,1,1
+cape verde,geography,excl_only,1,1
+central african rep,geography,excl_only,1,1
+chad,geography,excl_only,1,1
+chile,geography,excl_only,1,1
+china,geography,excl_only,1,1
+colombia,geography,excl_only,1,1
+comoros,geography,excl_only,1,1
+congo,geography,excl_only,1,1
+costa rica,geography,excl_only,1,1
+croatia,geography,excl_only,1,1
+cuba,geography,excl_only,1,1
+cyprus,geography,excl_only,1,1
+czech republic,geography,excl_only,1,1
+denmark,geography,excl_only,1,1
+djibouti,geography,excl_only,1,1
+dominica,geography,excl_only,1,1
+dominican republic,geography,excl_only,1,1
+democratic republic of congo,geography,excl_only,1,1
+east timor,geography,excl_only,1,1
+ecuador,geography,excl_only,1,1
+egypt,geography,excl_only,1,1
+el salvador,geography,excl_only,1,1
+equatorial guinea,geography,excl_only,1,1
+eritrea,geography,excl_only,1,1
+estonia,geography,excl_only,1,1
+ethiopia,geography,excl_only,1,1
+fiji,geography,excl_only,1,1
+finland,geography,excl_only,1,1
+france,geography,excl_only,1,1
+gabon,geography,excl_only,1,1
+gambia,geography,excl_only,1,1
+georgia,geography,excl_only,1,1
+germany,geography,excl_only,1,1
+ghana,geography,excl_only,1,1
+greece,geography,excl_only,1,1
+grenada,geography,excl_only,1,1
+guatemala,geography,excl_only,1,1
+guinea,geography,excl_only,1,1
+guinea-bissau,geography,excl_only,1,1
+guyana,geography,excl_only,1,1
+haiti,geography,excl_only,1,1
+honduras,geography,excl_only,1,1
+hungary,geography,excl_only,1,1
+iceland,geography,excl_only,1,1
+india,geography,excl_only,1,1
+indonesia,geography,excl_only,1,1
+iran,geography,excl_only,1,1
+iraq,geography,excl_only,1,1
+ireland,geography,excl_only,1,1
+israel,geography,excl_only,1,1
+italy,geography,excl_only,1,1
+ivory coast,geography,excl_only,1,1
+jamaica,geography,excl_only,1,1
+japan,geography,excl_only,1,1
+jordan,geography,excl_only,1,1
+kazakhstan,geography,excl_only,1,1
+kenya,geography,excl_only,1,1
+kiribati,geography,excl_only,1,1
+korea north,geography,excl_only,1,1
+korea south,geography,excl_only,1,1
+kosovo,geography,excl_only,1,1
+kuwait,geography,excl_only,1,1
+kyrgyzstan,geography,excl_only,1,1
+laos,geography,excl_only,1,1
+latvia,geography,excl_only,1,1
+lebanon,geography,excl_only,1,1
+lesotho,geography,excl_only,1,1
+liberia,geography,excl_only,1,1
+libya,geography,excl_only,1,1
+liechtenstein,geography,excl_only,1,1
+lithuania,geography,excl_only,1,1
+luxembourg,geography,excl_only,1,1
+macedonia,geography,excl_only,1,1
+madagascar,geography,excl_only,1,1
+malawi,geography,excl_only,1,1
+malaysia,geography,excl_only,1,1
+maldives,geography,excl_only,1,1
+mali,geography,excl_only,1,1
+malta,geography,excl_only,1,1
+marshall islands,geography,excl_only,1,1
+mauritania,geography,excl_only,1,1
+mauritius,geography,excl_only,1,1
+mexico,geography,excl_only,1,1
+micronesia,geography,excl_only,1,1
+moldova,geography,excl_only,1,1
+monaco,geography,excl_only,1,1
+mongolia,geography,excl_only,1,1
+montenegro,geography,excl_only,1,1
+morocco,geography,excl_only,1,1
+mozambique,geography,excl_only,1,1
+myanmar,geography,excl_only,1,1
+namibia,geography,excl_only,1,1
+nauru,geography,excl_only,1,1
+nepal,geography,excl_only,1,1
+netherlands,geography,excl_only,1,1
+new zealand,geography,excl_only,1,1
+nicaragua,geography,excl_only,1,1
+niger,geography,excl_only,1,1
+nigeria,geography,excl_only,1,1
+norway,geography,excl_only,1,1
+oman,geography,excl_only,1,1
+pakistan,geography,excl_only,1,1
+palau,geography,excl_only,1,1
+panama,geography,excl_only,1,1
+papua new guinea,geography,excl_only,1,1
+paraguay,geography,excl_only,1,1
+peru,geography,excl_only,1,1
+philippines,geography,excl_only,1,1
+poland,geography,excl_only,1,1
+portugal,geography,excl_only,1,1
+qatar,geography,excl_only,1,1
+romania,geography,excl_only,1,1
+russia,geography,excl_only,1,1
+russian federation,geography,excl_only,1,1
+rwanda,geography,excl_only,1,1
+st kitts and nevis,geography,excl_only,1,1
+st lucia,geography,excl_only,1,1
+saint vincent and the grenadines,geography,excl_only,1,1
+samoa,geography,excl_only,1,1
+san marino,geography,excl_only,1,1
+sao tome and principe,geography,excl_only,1,1
+saudi arabia,geography,excl_only,1,1
+senegal,geography,excl_only,1,1
+serbia,geography,excl_only,1,1
+seychelles,geography,excl_only,1,1
+sierra leone,geography,excl_only,1,1
+singapore,geography,excl_only,1,1
+slovakia,geography,excl_only,1,1
+slovenia,geography,excl_only,1,1
+solomon islands,geography,excl_only,1,1
+somalia,geography,excl_only,1,1
+south africa,geography,excl_only,1,1
+south sudan,geography,excl_only,1,1
+spain,geography,excl_only,1,1
+sri lanka,geography,excl_only,1,1
+sudan,geography,excl_only,1,1
+suriname,geography,excl_only,1,1
+swaziland,geography,excl_only,1,1
+sweden,geography,excl_only,1,1
+switzerland,geography,excl_only,1,1
+syria,geography,excl_only,1,1
+taiwan,geography,excl_only,1,1
+tajikistan,geography,excl_only,1,1
+tanzania,geography,excl_only,1,1
+thailand,geography,excl_only,1,1
+togo,geography,excl_only,1,1
+tonga,geography,excl_only,1,1
+trinidad and tobago,geography,excl_only,1,1
+tunisia,geography,excl_only,1,1
+turkey,geography,excl_only,1,1
+turkmenistan,geography,excl_only,1,1
+tuvalu,geography,excl_only,1,1
+uganda,geography,excl_only,1,1
+ukraine,geography,excl_only,1,1
+united arab emirates,geography,excl_only,1,1
+united kingdom,geography,excl_only,1,1
+united states,geography,excl_only,1,1
+uruguay,geography,excl_only,1,1
+uzbekistan,geography,excl_only,1,1
+vanuatu,geography,excl_only,1,1
+vatican city,geography,excl_only,1,1
+venezuela,geography,excl_only,1,1
+vietnam,geography,excl_only,1,1
+yemen,geography,excl_only,1,1
+zambia,geography,excl_only,1,1
+zimbabwe,geography,excl_only,1,1
+uk,geography,excl_only,1,1
+usa,geography,excl_only,1,1
+england,geography,excl_only,1,1
+scotland,geography,excl_only,1,1
+wales,geography,excl_only,1,1
+norther ireland,geography,excl_only,1,1
+africa,geography,excl_only,1,1
+african,geography,excl_only,1,1
+europe,geography,excl_only,1,1
+european,geography,excl_only,1,1
+north america,geography,excl_only,1,1
+south america,geography,excl_only,1,1
+latin america,geography,excl_only,1,1
+north american,geography,excl_only,1,1
+south american,geography,excl_only,1,1
+latin american,geography,excl_only,1,1
+u.s.,geography,excl_only,1,1
+u.k.,geography,excl_only,1,1
+asia,geography,excl_only,1,1
+asian,geography,excl_only,1,1
+oceania,geography,excl_only,1,1
+worldwide,geography,excl_only,1,1
+global,geography,excl_only,1,1
+multinational,geography,excl_only,1,1
+international,geography,excl_only,1,1
+national,geography,excl_only,1,1
+nationwide,geography,excl_only,1,1
+ongoing,temporal,excl,1,1
+north,geography,excl,1,1
+south ,geography,excl,1,1
+east,geography,excl,1,1
+west,geography,excl,1,1
+northeastern,geography,excl,1,1
+northwestern,geography,excl,1,1
+southeastern,geography,excl,1,1
+southwestern,geography,excl,1,1
+northern,geography,excl,1,1
+southern,geography,excl,1,1
+eastern,geography,excl,1,1
+western,geography,excl,1,1
+countries,geography,excl,1,1
+country,geography,excl,1,1
+nation,geography,excl,1,1
+nations,geography,excl,1,1
+province,geography,excl,1,1
+provinces,geography,excl,1,1
+provincial,geography,excl_only,1,1
+region,geography,excl_only,1,1
+regions,geography,excl_only,1,1
+regional,geography,excl_only,1,1
+interaction,generic,excl_only,1,1
+interactions,generic,excl_only,1,1
+follow,comparator,excl_only,1,1
+follows,comparator,excl_only,1,1
+older,comparator,excl_only,1,1
+younger,comparator,excl_only,1,1
+newer,comparator,excl_only,1,1
+chinese,geography,excl_only,1,1
+indian,geography,excl_only,1,1
+indians,geography,excl_only,1,1
+american,geography,excl_only,1,1
+americans,geography,excl_only,1,1
+indonesian,geography,excl_only,1,1
+indonesians,geography,excl_only,1,1
+pakistani,geography,excl_only,1,1
+pakistanis,geography,excl_only,1,1
+nigerian,geography,excl_only,1,1
+nigerians,geography,excl_only,1,1
+brazillian,geography,excl_only,1,1
+brazillians,geography,excl_only,1,1
+bangladeshi,geography,excl_only,1,1
+bangladeshis,geography,excl_only,1,1
+russia,geography,excl_only,1,1
+russian,geography,excl_only,1,1
+russians,geography,excl_only,1,1
+mexican,geography,excl_only,1,1
+mexicans,geography,excl_only,1,1
+japanese,geography,excl_only,1,1
+filipino,geography,excl_only,1,1
+ethiopian,geography,excl_only,1,1
+ethiopians,geography,excl_only,1,1
+egyptian,geography,excl_only,1,1
+egyptians,geography,excl_only,1,1
+vietnamese,geography,excl_only,1,1
+iranian,geography,excl_only,1,1
+iranians,geography,excl_only,1,1
+turkish,geography,excl_only,1,1
+german,geography,excl_only,1,1
+germans,geography,excl_only,1,1
+british,geography,excl_only,1,1
+french,geography,excl_only,1,1
+tanzanian,geography,excl_only,1,1
+tanzanians,geography,excl_only,1,1
+thai,geography,excl_only,1,1
+south african,geography,excl_only,1,1
+south africans,geography,excl_only,1,1
+italian,geography,excl_only,1,1
+italians,geography,excl_only,1,1
+kenyan,geography,excl_only,1,1
+kenyans,geography,excl_only,1,1
+colombian,geography,excl_only,1,1
+colombians,geography,excl_only,1,1
+sudanese,geography,excl_only,1,1
+korean,geography,excl_only,1,1
+koreans,geography,excl_only,1,1
+south korean,geography,excl_only,1,1
+south koreans,geography,excl_only,1,1
+north korean,geography,excl_only,1,1
+north koreans,geography,excl_only,1,1
+spanish,geography,excl_only,1,1
+algerian,geography,excl_only,1,1
+algerians,geography,excl_only,1,1
+argentinian,geography,excl_only,1,1
+argentnians,geography,excl_only,1,1
+argentine,geography,excl_only,1,1
+argentines,geography,excl_only,1,1
+iraqi,geography,excl_only,1,1
+iraqis,geography,excl_only,1,1
+ugandan,geography,excl_only,1,1
+ugandans,geography,excl_only,1,1
+afghanistani,geography,excl_only,1,1
+afghanistanis,geography,excl_only,1,1
+canadian,geography,excl_only,1,1
+canadians,geography,excl_only,1,1
+angolan,geography,excl_only,1,1
+angolans,geography,excl_only,1,1
+uzbek,geography,excl_only,1,1
+uzbeks,geography,excl_only,1,1
+polish,geography,excl_only,1,1
+moroccan,geography,excl_only,1,1
+moroccans,geography,excl_only,1,1
+saudi,geography,excl_only,1,1
+saudis,geography,excl_only,1,1
+peruvian,geography,excl_only,1,1
+peruvians,geography,excl_only,1,1
+malaysian,geography,excl_only,1,1
+malaysians,geography,excl_only,1,1
+icelandic,geography,excl_only,1,1
+norwegian,geography,excl_only,1,1
+norwegians,geography,excl_only,1,1
+swiss,geography,excl_only,1,1
+dane,geography,excl_only,1,1
+danes,geography,excl_only,1,1
+danish,geography,excl_only,1,1
+australian,geography,excl_only,1,1
+australians,geography,excl_only,1,1
+cantonese,geography,excl_only,1,1
+dutch,geography,excl_only,1,1
+belgian,geography,excl_only,1,1
+belgians,geography,excl_only,1,1
+irish,geography,excl_only,1,1
+finnish,geography,excl_only,1,1
+singaporean,geography,excl_only,1,1
+singaporeans,geography,excl_only,1,1
+slovenian,geography,excl_only,1,1
+solvenians,geography,excl_only,1,1
+austrian,geography,excl_only,1,1
+austrians,geography,excl_only,1,1
+maltese,geography,excl_only,1,1
+greek,geography,excl_only,1,1
+greeks,geography,excl_only,1,1
+portugese,geography,excl_only,1,1
+bolivian,geography,excl_only,1,1
+bolivians,geography,excl_only,1,1
+category,generic,excl_only,1,1
+categories,generic,excl_only,1,1
+correlation,academic_syntax,excl_only,1,1
+further analysis,academic_syntax,excl_only,1,1
+further analyses,academic_syntax,excl_only,1,1
+further studies,academic_syntax,excl_only,1,1
+guideline,academic_syntax,excl_only,1,1
+guidelines,academic_syntax,excl_only,1,0
+median,statistics,excl_only,1,1
+occur,generic,excl_only,1,1
+occurs,generic,excl_only,1,1
+occurrence,generic,excl_only,1,1
+occurrences,generic,excl_only,1,1
+lacks,generic,excl_only,1,1
+lacking,generic,excl_only,1,1
+increase,comparator,excl_only,1,1
+increases,comparator,excl_only,1,1
+increasing,comparator,excl_only,1,1
+increased,comparator,excl_only,1,1
+decrease,comparator,excl_only,1,1
+decreases,comparator,excl_only,1,1
+decreasing,comparator,excl_only,1,1
+decreased,comparator,excl_only,1,1
+decrease,comparator,excl_only,1,1
+decreases,comparator,excl_only,1,1
+decreasing,comparator,excl_only,1,1
+augmentation,academic_syntax,excl_only,1,1
+mild,generic,excl_only,1,0
+severe,comparator,excl_only,1,0
+relative,comparator,excl_only,1,1
+most effective,comparator,excl_only,1,0
+least effective,comparator,excl_only,1,0
+form,academic_syntax,excl_only,1,1
+major,academic_syntax,excl_only,1,1
+minor,academic_syntax,excl_only,1,1
+first,temporal,excl_only,1,1
+second,temporal,excl_only,1,1
+third,temporal,excl_only,1,1
+fourth,temporal,excl_only,1,1
+fifth,temporal,excl_only,1,1
+sixth,temporal,excl_only,1,1
+seventh,temporal,excl_only,1,1
+eighth,temporal,excl_only,1,1
+ninth,temporal,excl_only,1,1
+tenth,temporal,excl_only,1,1
+subject,academic_syntax,excl_only,1,1
+subjects,academic_syntax,excl_only,1,1
+above,comparator,excl_only,1,1
+below,comparator,excl_only,1,1
+literature,academic_syntax,excl_only,1,1
+predictor,academic_syntax,excl_only,1,0
+classify,academic_syntax,excl_only,1,1
+classifiers,academic_syntax,excl_only,1,1
+architecture,academic_syntax,excl_only,1,1
+positive,comparator,excl_only,1,1
+negative,comparator,excl_only,1,1
+extended,academic_syntax,excl_only,1,1
+estimate,academic_syntax,excl_only,1,1
+goal,academic_syntax,excl_only,1,1
+protocol,academic_syntax,excl_only,1,1
+reduction,academic_syntax,excl_only,1,1
+path,academic_syntax,excl_only,1,1
+criteria,academic_syntax,excl_only,1,1
+criterion,academic_syntax,excl_only,1,1
+focus,academic_syntax,excl_only,1,0
+never,generic,excl_only,1,1
+neither,generic,excl_only,1,1
+algorithm,academic_syntax,excl_only,1,1
+mechanism,academic_syntax,excl_only,1,1
+procedure,academic_syntax,excl_only,1,1
+component,academic_syntax,excl_only,1,1
+constitution,academic_syntax,excl_only,1,0
+uncertainty,academic_syntax,excl_only,1,1
+constraint,academic_syntax,excl_only,1,0
+operation,academic_syntax,excl_only,1,0
+interface,academic_syntax,excl_only,1,1
+descriptor,academic_syntax,excl_only,1,0
+specification,academic_syntax,excl_only,1,0
+hierarchy,academic_syntax,excl_only,1,1
+scenario,academic_syntax,excl_only,1,1
+phase,temporal,excl_only,1,1
+stage,temporal,excl_only,1,1
+layout,academic_syntax,excl_only,1,1
+relation,academic_syntax,excl_only,1,1
+former,comparator,excl_only,1,1
+latter,comparator,excl_only,1,1
+syntax,academic_syntax,excl_only,1,1
+schema,academic_syntax,excl_only,1,1
+precision,statistics,excl_only,1,1
+recall,statistics,excl_only,1,1
+parameter,academic_syntax,excl_only,1,1
+similarity,comparator,excl_only,1,1
+invariant,academic_syntax,excl_only,1,1
+margin,statitstics,excl_only,1,1
+allow,generic,excl_only,1,1
+allows,generic,excl_only,1,1
+success,comparator,excl_only,1,0
+failure,comparator,excl_only,1,0

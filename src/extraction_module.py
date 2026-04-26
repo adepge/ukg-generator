@@ -1,7 +1,21 @@
-from __future__ import annotations
+"""
+Extraction Module
+
+This module is used to extract the data from a PDF file.
+It supports the extraction of unstructured text from a PDF file (expected to be a research article).
+It will attempt to extract the following:
+- Document metadata
+- Sections
+- References/Citations
+
+The PDF is first converted to a JSON file using pymupdf4llm.
+The JSON file is then post-processed to extract the data.
+"""
 
 import json
+import os
 import re
+import threading
 import pymupdf.layout
 import pymupdf4llm
 import urllib.error
@@ -12,20 +26,30 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional, Protocol
-from langdetect import detect
-
+from lingua import Language, LanguageDetectorBuilder
 
 # Regular expressions for extracting the DOI, URL, and PMID from the text.
 DOI_REGEX = re.compile(r"(10\.\d{4,9}/[-._;()/:A-Z0-9]+)", re.IGNORECASE)
 URL_REGEX = re.compile(r"https?://[^\s]+", re.IGNORECASE)
 PMID_REGEX = re.compile(r"\bPMID:\s*(\d+)\b", re.IGNORECASE)
 CITATION_PATTERN = re.compile(
-    r"\[(?:\s*\d+\s*(?:[-–]\s*\d+\s*)?)(?:\s*,\s*\d+\s*(?:[-–]\s*\d+\s*)?)*\s*\]"
+    r"\[(?:\s*\d{1,3}\s*(?:[-–]\s*\d{1,3}\s*)?)(?:\s*,\s*\d{1,3}\s*(?:[-–]\s*\d{1,3}\s*)?)*\s*\]"
+)
+FALLBACK_CITATION_PATTERN = re.compile(
+    r"\((?:\s*\d{1,3}\s*(?:[-–]\s*\d{1,3}\s*)?)(?:\s*,\s*\d{1,3}\s*(?:[-–]\s*\d{1,3}\s*)?)*\s*\)"
 )
 AUTHOR_YEAR_PATTERN = re.compile(r'\((?=[^)]*[A-Z])(?=[^)]*,)(?=[^)]*(?:19|20)[0-9][0-9])[A-Za-z0-9,&;.\’\'\s-]*\)')
 
+# Regular expression for extracting acronyms.
+ACRONYM_REGEX = re.compile(
+    r"(?P<full_form>[A-Za-z][A-Za-z\s\u2019'-]{2,}?)\s*\((?P<acronym>[A-Za-z][A-Za-z0-9-]{1,})\)"
+)
+
 # Stopwords for acronym matching.
 STOPWORDS = {"of", "on", "and", "the", "in", "for", "to", "a", "an"}
+
+# Build English-only language detector
+detector = LanguageDetectorBuilder.from_languages(Language.ENGLISH).build()
 
 # Heading aliases for the reference list.
 REFERENCE_HEADINGS = {
@@ -87,11 +111,13 @@ ABSTRACT_SUBHEADINGS = {
     "conclusion",
 }
 
+# Headings to ignore as filler text.
 FILLER_HEADINGS = {
     "open access",
     "research article",
 }
 
+# Special characters to filter out of the text.
 SPECIAL_CHARS = {
     "�",
     "\u00a0",
@@ -100,40 +126,40 @@ SPECIAL_CHARS = {
 @dataclass
 class DocumentMetadata:
     """Metadata for a document."""
-    title: str = ""
-    authors: list[str] = field(default_factory=list)
-    citations_count: int = 0
-    doi: Optional[str] = None
-    journal: Optional[str] = None
-    article_type: Optional[str] = None
-    received_date: Optional[str] = None
-    accepted_date: Optional[str] = None
-    published_date: Optional[str] = None
-    raw: dict[str, Any] = field(default_factory=dict)
+    title: str = ""                                     # The title of the document
+    authors: list[str] = field(default_factory=list)    # The authors of the document
+    citations_count: int = 0                            # Count of the number of other articles that cite this document
+    doi: Optional[str] = None                           # The DOI of the document
+    journal: Optional[str] = None                       # The journal of the document
+    article_type: Optional[str] = None                  # The type of the document
+    received_date: Optional[str] = None                 # The received date of the document
+    accepted_date: Optional[str] = None                 # The accepted date of the document
+    published_date: Optional[str] = None                # The published date of the document
+    raw: dict[str, Any] = field(default_factory=dict)   # The raw metadata of the document as extracted from the JSON file
 
 
 @dataclass
 class Section:
     """A section of a document."""
-    heading: str
-    text: str
-    level: int
-    parent_heading: Optional[str] = None
-    citations: Optional[list[int]] = None
-    number_of_citations: int = 0
-    citations_reference_count: int = 0
-    path: list[str] = field(default_factory=list)
-    page_numbers: list[int] = field(default_factory=list)
+    heading: str                                              # The heading of the section
+    text: str                                                 # The text of the section (the content of the section)
+    level: int                                                # The level of the section (how deeply nested the section is in the document)
+    parent_heading: Optional[str] = None                      # The parent heading of the section
+    citations: Optional[list[int]] = None                     # The list of section IDs that are cited by this section
+    number_of_citations: int = 0                              # Count of the number of citations in the section
+    citations_reference_count: int = 0                        # Total citation count of all the references cited in the section
+    path: list[str] = field(default_factory=list)             # The path of the section (e.g Introduction > Background > Methods)
+    page_numbers: list[int] = field(default_factory=list)     # The page numbers of the section
 
 @dataclass
 class Reference:
     """A reference to a document."""
-    index: int
-    text: str
-    doi: Optional[str] = None
-    url: Optional[str] = None
-    pmid: Optional[str] = None
-    citations_count: Optional[int] = None
+    index: int                                                # The index of the reference
+    text: str                                                 # The text of the reference
+    doi: Optional[str] = None                                 # The DOI of the reference
+    url: Optional[str] = None                                 # The URL of the reference
+    pmid: Optional[str] = None                                # The PMID of the reference
+    citations_count: Optional[int] = None                     # The number of citations of the reference
 
     def as_legacy_tuple(self) -> tuple[int | None, str | None, str]:
         main_url = self.url
@@ -144,7 +170,15 @@ class Reference:
 
 @dataclass
 class ExtractionResult:
-    """Stores the extraction result."""
+    """
+    Stores the extraction result.
+
+    Contains the following:
+    - metadata: The metadata of the document
+    - sections: The sections of the document
+    - references: The references of the document
+    
+    """
     metadata: DocumentMetadata
     sections: list[Section]
     references: list[Reference]
@@ -156,20 +190,23 @@ class ExtractionResult:
             if section.text.strip()
         ]
 
-    def to_legacy_output(self) -> tuple[list[tuple[str, str]], list[tuple[int | None, str | None, str]]]:
-        return self.to_tuples(), [reference.as_legacy_tuple() for reference in self.references]
 
 @dataclass
 class LearnedAcronyms:
-    """Stores the learned acronyms."""
+    """
+    Stores the learned acronyms.
+    This allows the replacement of acronyms found within the text across all sections of the document.
+    """
     acronyms: dict[str, str] = field(default_factory=dict)
 
     def add_acronym(self, acronym: str, full_form: str):
+        # Adds the acronym to the dictionary if it is not already present
         if acronym in self.acronyms:
             return
         self.acronyms[acronym] = full_form
 
     def replace_acronyms(self, string: str) -> str:
+        # Replaces the acronyms in the text with the full form
         for acronym in self.acronyms:
             if acronym in string:
                 string = string.replace(acronym, self.acronyms[acronym])
@@ -198,17 +235,36 @@ class HeadingCandidate:
 
 
 class MetadataEnricher(Protocol):
+    # Template for a metadata enricher
     def enrich(self, doi: str) -> dict[str, Any]:
-        """Return normalized metadata for a DOI."""
-
+        """
+        Enriches the metadata for a DOI.
+        """
 
 class CrossrefEnricher:
-    """Best-effort DOI metadata enrichment using the Crossref API."""
+    """
+    Best-effort DOI metadata enrichment using the Crossref API.
+
+    Responses are cached per-process so that repeated calls for the same DOI
+    do not make additional API calls.
+    """
+
+    # Caches the metadata for the DOIs (if the DOI already exists in the cache, it returns the cached metadata)
+    cache: dict[str, dict[str, Any]] = {}
+    cache_lock = threading.Lock()
 
     def __init__(self, timeout: float = 5.0):
         self.timeout = timeout
 
     def enrich(self, doi: str) -> dict[str, Any]:
+        if not doi:
+            return {}
+
+        with self.cache_lock:
+            cached = self.cache.get(doi)
+        if cached is not None:
+            return cached
+
         url = f"https://api.crossref.org/works/{urllib.parse.quote(doi)}"
         request = urllib.request.Request(
             url,
@@ -220,7 +276,7 @@ class CrossrefEnricher:
         message = payload.get("message", {})
         authors = []
 
-        # Extract author given and family names from the Crossref API response.
+        # Extract author given and family names from the Crossref API response
         for author in message.get("author", []):
             given = author.get("given", "").strip()
             family = author.get("family", "").strip()
@@ -228,12 +284,12 @@ class CrossrefEnricher:
             if full_name:
                 authors.append(full_name)
 
-        # Extract the citations count from the Crossref API response.
+        # Extract the citations count from the Crossref API response
         citations_count = message.get("is-referenced-by-count", 0)
         title = " ".join(message.get("title", [])).strip()
         journal = " ".join(message.get("container-title", [])).strip() or None
         published_date = extract_date(message.get("published-print")) or extract_date(message.get("published-online"))
-        return {
+        result = {
             "title": title or None,
             "authors": authors,
             "journal": journal,
@@ -241,21 +297,40 @@ class CrossrefEnricher:
             "citations_count": citations_count,
             "references": message.get("reference", []),
         }
+        with self.cache_lock:
+            self.cache[doi] = result
+        return result
 
-def extract_json_data(file_path: str):
-    """Extract PDF layout data and store it as JSON."""
+    @classmethod
+    def clear_cache(cls) -> None:
+        with cls.cache_lock:
+            cls.cache.clear()
 
-    file_name = file_path.split("/")[-1].split(".")[0]
+def extract_json_data(file_path: str, write_json: bool = True, output_dir: Path | None = None):
+    """
+    Extract PDF layout data.
 
-    output_dir = Path(__file__).parent / "output" / file_name
-    output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / f"{file_name}.json"
+    Args:
+        file_path: The path to the PDF file.
+        write_json: Whether to write the JSON file to disk.
+
+    Returns a (output_path, data) tuple where:
+        data: is the parsed JSON dict.  
+        output_path: is the location the JSON file was written to if write_json is True.
+
+    Returns:
+        (None, None) if the PDF cannot be opened.
+    """
+
+    file_name = Path(file_path).stem
+    output_dir = output_dir or Path(__file__).parent / "output" / file_name
+    output_path = None
 
     try:
         doc = pymupdf.open(file_path)
     except Exception as exc:
         print(f"Error: {exc}")
-        return None
+        return None, None
 
     extracted_json = pymupdf4llm.to_json(
         doc,
@@ -264,32 +339,63 @@ def extract_json_data(file_path: str):
         use_ocr=False,
     )
 
-    with open(output_path, "w", encoding="utf-8") as handle:
-        handle.write(extracted_json)
+    # Load the extract JSON data into a dictionary 
+    data = json.loads(extracted_json) if isinstance(extracted_json, str) else extracted_json
 
-    return output_path
+    # Write the extracted JSON data to a file if write_json is True
+    if write_json:
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_path = output_dir / f"{file_name}.json"
+        with open(output_path, "w", encoding="utf-8") as handle:
+            if isinstance(extracted_json, str):
+                handle.write(extracted_json)
+            else:
+                json.dump(data, handle)
+
+    return output_path, data
 
 
 def post_process_json_data(
-    json_path: str,
+    json_path: str | None = None,
     write_tuples: bool = False,
     write_references: bool = False,
     enrich_metadata: bool = False,
     enrich_references: bool = False,
     metadata_enricher: MetadataEnricher | None = None,
+    data: dict[str, Any] | None = None,
+    output_basename: str | None = None,
+    output_dir: str | Path | None = None,
 ) -> ExtractionResult:
     """
-    Transform extracted PDF JSON into structured metadata, sections, and references.
+    Transforms extracted PDF data into structured metadata, sections, and references.
+    Expects either the json_path or data (dict) to be provided.
 
+    Args:
+        json_path: The path to the JSON file.
+        write_tuples: Whether to write the tuples file (heading, text) to disk.
+        write_references: Whether to write the references file (reference number, main URL, reference text) to disk.
+        enrich_metadata: Whether to enrich the metadata using the DOI if available.
+        enrich_references: Whether to enrich the references using the DOI if available.
+        metadata_enricher: The metadata enricher to use (defaults to the Crossref API enricher).
+        data: The data from the JSON file.
+        output_basename: The basename of the output file (only required for writing the tuples and references files).
+        output_dir: The directory to write the output files to (only required for writing the tuples and references files).
     Returns:
-        An `ExtractionResult` that can be adapted back to legacy tuple output.
+        An ExtractionResult object.
     """
-    with open(json_path, "r", encoding="utf-8") as handle:
-        data = json.load(handle)
+    if data is None:
+        if not json_path:
+            raise ValueError("post_process_json_data requires either json_path or data")
+        with open(json_path, "r", encoding="utf-8") as handle:
+            data = json.load(handle)
 
-    file_name = json_path.split("/")[-1].split(".")[0]
-    folder_path = "/".join(json_path.split("/")[:-1])
-    text_file = folder_path + "/" + file_name + ".txt"
+    if json_path:
+        file_name = json_path.split("/")[-1].split(".")[0]
+        folder_path = "/".join(json_path.split("/")[:-1]) or "."
+    else:
+        file_name = output_basename or "document"
+        folder_path = str(output_dir) if output_dir else "."
+    text_file = folder_path + "/" + file_name + ".tuples.txt"
     reference_file = folder_path + "/" + file_name + ".references.txt"
 
     layout_stats = compute_layout_stats(data)
@@ -301,24 +407,33 @@ def post_process_json_data(
         metadata_enricher=metadata_enricher,
     )
 
-    # Re-run title matching once metadata has been normalized.
-    heading_candidates = detect_heading_candidates(data, layout_stats, metadata)
+    # Filters out the title candidates and sets the is_title flag to True for the title candidate
+    filter_title_candidates(heading_candidates, metadata)
+
     sections = build_sections(data, heading_candidates, layout_stats)
 
-    # Only extract references if citations are found in at least 3 sections.
-    if citation_litmus(sections):
+    # Performs the citation litmus test to determine the citation pattern used in the document
+    citation_pattern = citation_litmus(sections)
+    if citation_pattern:
         # Associate citations with each section.
-        sections = associate_citations(sections)
+        sections = associate_citations(sections, citation_pattern)
         reference_boxes = extract_reference_block(data, heading_candidates)
-        references = parse_references(reference_boxes)
-        # If enabled and any reference text is longer than 250 characters, enrich the references using the DOI.
-        if enrich_references and any(len(reference.text) > 250 for reference in references):
-            print("Enriching references using the DOI.")
-            references = enrich_document_references(metadata.doi, metadata_enricher) if metadata.doi else []
+        references = []
+
+        # If the DOI is available and enrich_references is True, enrich the references using the DOI
+        if metadata.doi and enrich_references:
+            references = enrich_document_references(metadata.doi, metadata_enricher)
+        else:
+            # Otherwise, parse the references from the reference boxes from the document manually
+            references = parse_references(reference_boxes)
+            if any(len(reference.text) > 250 for reference in references):
+                # If any reference text is longer than 250 characters, clear the references as the returned data is likely to be malformed
+                references = []
         
-        # Count the total "is-referenced-by-count" of the citations in the sections.
+        # Count the total "is-referenced-by-count" of the citations in the sections
         count_reference_citations(sections, references, metadata_enricher)
     else:
+        # If no citation pattern is found, do not extract any references
         references = []
     result = ExtractionResult(metadata=metadata, sections=sections, references=references)
 
@@ -326,7 +441,7 @@ def post_process_json_data(
         with open(text_file, "w", encoding="utf-8") as handle:
             for heading, text, citations in result.to_tuples():
                 if citations:
-                    text = f"{text} [ {citations} ]"
+                    text = f"{text} {citations}"
                 else:
                     text = f"{text}"
                 handle.write(f"{heading}: {text}\n")
@@ -351,6 +466,7 @@ def extract_document_metadata(
     """
     Extracts the document metadata from the data.
     Looks at the extracted metadata from the JSON file and the text of the first 2 pages.
+
     Input:
         data: The data from the JSON file.
         heading_candidates: The heading candidates from the data.
@@ -396,6 +512,7 @@ def enrich_metadata_from_doi(
     """
     Enriches the metadata from the DOI using the metadata enricher.
     Defaults to using the Crossref API enricher when no enricher is provided.
+
     Input:
         metadata: The metadata from the document.
         metadata_enricher: The metadata enricher to use.
@@ -410,19 +527,19 @@ def enrich_metadata_from_doi(
     except Exception:
         return metadata
 
-    # If any of the metadata is not found, use the enriched metadata.
-    if not metadata.title and enriched.get("title"):
+    # If any of the metadata is not found, use the enriched metadata
+    # Override the metadata with the enriched metadata (this keeps the display behaviour more consistent on the frontend)
+    if enriched.get("title"):
         metadata.title = enriched["title"]
-    if not metadata.authors and enriched.get("authors"):
+    if enriched.get("authors"):
         metadata.authors = enriched["authors"]
-    if not metadata.journal and enriched.get("journal"):
+    if enriched.get("journal"):
         metadata.journal = enriched["journal"]
-    if not metadata.published_date and enriched.get("published_date"):
+    if enriched.get("published_date"):
         metadata.published_date = enriched["published_date"]
-    if not metadata.citations_count and enriched.get("citations_count"):
+    if enriched.get("citations_count"):
         metadata.citations_count = enriched["citations_count"]
     return metadata
-
 
 def collect_text_snippets(data: dict[str, Any], limit: int = 2) -> str:
     """
@@ -441,6 +558,7 @@ def collect_text_snippets(data: dict[str, Any], limit: int = 2) -> str:
 def extract_labelled_value(text: str, label: str) -> str | None:
     """
     Extracts the labelled value from the text using a regular expression.
+
     Input:
         text: The text of the document.
         label: The label to extract.
@@ -473,6 +591,7 @@ def extract_journal(text: str) -> str | None:
 def extract_article_type(data: dict[str, Any], text: str) -> str | None:
     """
     Extracts the article type from the data and text.
+
     Input:
         data: The data from the JSON file.
         text: The text of the document.
@@ -502,6 +621,8 @@ def extract_article_type(data: dict[str, Any], text: str) -> str | None:
 def split_authors(author_text: str) -> list[str]:
     """
     Splits the authors from the author text.
+    Removes the ID tag from the authors.
+
     Input:
         author_text: The text containing the authors.
     Returns:
@@ -512,7 +633,7 @@ def split_authors(author_text: str) -> list[str]:
         return []
     authors = []
     for chunk in cleaned.split(","):
-        # Removes multiple spaces and also removes the ID tag.
+        # Removes multiple spaces and also removes the ID tag
         candidate = re.sub(r"\s+", " ", chunk).strip()
         candidate = re.sub(r"\bID\b", "", candidate).strip(" *")
         if candidate:
@@ -525,6 +646,7 @@ def extract_authors_from_front_matter(front_matter: str, title: str) -> list[str
     Extracts the authors from the front matter of the document.
     The front matter would typically be the first 2 pages of the document.
     This would assume that the authors are typically listed after the title.
+
     Input:
         front_matter: The front matter of the document.
         title: The title of the document.
@@ -535,7 +657,7 @@ def extract_authors_from_front_matter(front_matter: str, title: str) -> list[str
     if not lines:
         return []
 
-    # Finds the index of the title in the front matter.
+    # Finds the index of the title in the front matter
     title_index = -1
     title_norm = normalize_text(title)
     for index, line in enumerate(lines):
@@ -563,6 +685,7 @@ def compute_layout_stats(data: dict[str, Any]) -> LayoutStats:
     """
     Computes the layout statistics from the data.
     This is used to determine the minimum body font size and the body font size (most common font size).
+
     Input:
         data: The data from the JSON file.
     Returns:
@@ -592,6 +715,7 @@ def build_sections(
     """
     Builds the sections of the document from the data.
     This is used to group the text into sections based on the headings.
+
     Input:
         data: The data from the JSON file.
         heading_candidates: The heading candidates from the data.
@@ -600,28 +724,27 @@ def build_sections(
         A list of sections.
     """
 
-    # Initializes the list of sections and the current section.
+    # Initializes the list of sections and the current section
     sections: list[Section] = []
     current_section: Section | None = None
     section_stack: list[Section] = []
-    acronyms: LearnedAcronyms = LearnedAcronyms()
 
     for page_number, box_index, box in iterate_boxes(data):
         # Gets the heading candidate for the current box.
         candidate = heading_candidates.get((page_number, box_index))
         if candidate:
-            # If the candidate is the title of the document, skip it.
+            # If the candidate is the title of the document, skip it
             if candidate.is_title:
                 continue
             effective_level = resolve_section_level(candidate, section_stack)
             if effective_level is None:
                 continue
 
-            # Removes the sections from the stack that are at a higher level than the current section.
+            # Removes the sections from the stack that are at a higher level than the current section
             while section_stack and section_stack[-1].level >= effective_level:
                 section_stack.pop()
 
-            # If the section text is under a subheading, add the parent heading to the section path.
+            # If the section text is under a subheading, add the parent heading to the section path
             parent_heading = section_stack[-1].path if section_stack else None
             section_path = (
                 f"{parent_heading} > {candidate.text}" if parent_heading else candidate.text
@@ -648,33 +771,80 @@ def build_sections(
         # If the box is not a text box, skip it.
         boxclass = box.get("boxclass", "")
         if boxclass != "text":
-            continue
+            if boxclass == "links":
+                box_text = extract_box_text(box, min_size=layout_stats.min_body_font_size)
+                # If the text matches the pattern of a citation, add it to the text
+                if not any(pattern.search(box_text) for pattern in [CITATION_PATTERN, AUTHOR_YEAR_PATTERN, FALLBACK_CITATION_PATTERN]):
+                    continue
+            else:
+                continue
 
         # Extracts the text from the box and filters out unwanted text.
         box_text = extract_box_text(box, min_size=layout_stats.min_body_font_size)
         if not box_text or is_unwanted_text(box_text):
             continue
-    
-        # If the text is not in English, skip it (This occurs in some articles where the preamble is not in English).
-        try:
-            if detect(box_text) != "en":
-                continue
-        except Exception:
-            print(f"Error detecting language of text: {box_text}")
-            continue
 
-        # Merges the text from the box into the current section.
+        # Merges the text from the box into the current section
         current_section.text = merge_text_chunks(current_section.text, box_text)
         if page_number not in current_section.page_numbers:
             current_section.page_numbers.append(page_number)
+    
+    # Finds all acronyms in the document
+    all_acronyms = LearnedAcronyms()
+    for section in sections:
+        all_acronyms = find_all_acronyms(section.text, all_acronyms)
 
-    # Remove sections with no text
-    cleaned_sections = [section for section in sections if section.text.strip()]
+    # Remove sections with no text or non-English text
+    cleaned_sections = []
+    for section in sections:
+        if not section.text.strip() or len(section.text) < 20 or detector.detect_language_of(section.text) is None:
+            continue
 
-    # Replace the acronyms in the text with the full form.
-    for section in cleaned_sections:
-        section.text = find_and_replace_acronyms(section.text, acronyms)
+        # Replace the acronyms in the text with the full form
+        section.text = all_acronyms.replace_acronyms(section.text)
+        cleaned_sections.append(section)
     return cleaned_sections
+
+
+def filter_title_candidates(
+    heading_candidates: dict[tuple[int, int], HeadingCandidate],
+    metadata: DocumentMetadata | None,
+) -> None:
+    """
+    Updates the is_title flag on existing heading candidates once
+    the document title has been normalized.
+
+    When the metadata title matches a candidate we flag it as the authoritative
+    title and strip the is_title flag from any font-size fallback candidate that the
+    initial detection pass may have flagged.
+
+    Input:
+        heading_candidates: The heading candidates from the data.
+        metadata: The metadata from the document if available.
+    """
+    if not metadata or not metadata.title:
+        return
+    normalized_title = normalize_text(metadata.title)
+    if not normalized_title:
+        return
+
+    # Finds all heading candidates that match the normalized title
+    matches = [
+        candidate
+        for candidate in heading_candidates.values()
+        if normalize_text(candidate.text) == normalized_title
+    ]
+    if not matches:
+        return
+
+    # Sets the is_title flag to False for all heading candidates
+    for candidate in heading_candidates.values():
+        candidate.is_title = False
+
+    # Sets the is_title flag to True for the heading candidates that match the normalized title
+    for candidate in matches:
+        candidate.is_title = True
+        candidate.level = 0
 
 
 def detect_heading_candidates(
@@ -684,6 +854,7 @@ def detect_heading_candidates(
 ) -> dict[tuple[int, int], HeadingCandidate]:
     """
     Detects the heading candidates from the data.
+
     Input:
         data: The data from the JSON file.
         layout_stats: The layout statistics from the data.
@@ -692,28 +863,28 @@ def detect_heading_candidates(
         A dictionary of heading candidates.
     """
 
-    # Initializes the list of heading candidates.
+    # Initializes the list of heading candidates
     candidates: list[HeadingCandidate] = []
 
-    # Normalizes the title of the document if available.
+    # Normalizes the title of the document if available
     normalized_title = normalize_text(metadata.title) if metadata and metadata.title else ""
 
     for page_number, box_index, box in iterate_boxes(data):
-        # If the box is not a section header, skip it.
+        # If the box is not a section header, skip it
         if box.get("boxclass") != "section-header":
             continue
 
-        # Extracts the heading and filters out filler headings.
+        # Extracts the heading and filters out filler headings
         text = extract_box_text(box)
         if not text:
             continue
         if is_filler_heading(text):
             continue
 
-        # If the heading size is smaller than the minimum body font size and the heading is longer than 4 words, skip it.
+        # If the heading size is smaller than the minimum body font size, skip it
         spans = list(iterate_spans(box))
         font_size = max((float(span.get("size", 0.0)) for span in spans), default=0.0)
-        if font_size and font_size < layout_stats.min_body_font_size and len(text.split()) > 4:
+        if font_size and font_size < layout_stats.min_body_font_size:
             continue
 
         candidate = HeadingCandidate(
@@ -723,16 +894,16 @@ def detect_heading_candidates(
             font_size=font_size or layout_stats.body_font_size,
         )
 
-        # If the heading is the title of the document, set the is_title flag to True.
+        # If the heading is the title of the document, set the is_title flag to True
         if normalized_title and normalize_text(candidate.text) == normalized_title:
             candidate.is_title = True
         candidates.append(candidate)
 
-    # Return an empty dictionary if no candidates are found.
+    # Return an empty dictionary if no candidates are found
     if not candidates:
         return {}
 
-    # Search for the title candidate in the first page if no title candidate is found.
+    # Search for the title candidate in the first page if no title candidate is found
     if not any(candidate.is_title for candidate in candidates):
         title_candidate = max(
             candidates,
@@ -745,7 +916,7 @@ def detect_heading_candidates(
         if title_candidate.page_number == 1 and title_candidate.font_size >= layout_stats.body_font_size:
             title_candidate.is_title = True
 
-    # Filters out the title candidates and sorts the remaining candidates by font size.
+    # Filters out the title candidates and sorts the remaining candidates by font size
     non_title_sizes = sorted(
         {candidate.font_size for candidate in candidates if not candidate.is_title},
         reverse=True,
@@ -753,7 +924,7 @@ def detect_heading_candidates(
     if not non_title_sizes:
         non_title_sizes = sorted({candidate.font_size for candidate in candidates}, reverse=True)
 
-    # Sets the level of the candidates based on the font size (essentially, groups headings by font size).
+    # Sets the level of the candidates based on the font size (essentially, groups headings by font size)
     for candidate in candidates:
         if candidate.is_title:
             candidate.level = 0
@@ -774,13 +945,13 @@ def resolve_section_level(
     """
     heading_key = get_preferred_heading(candidate.text)
 
-    # If the candidate heading is a subheading of the abstract, return 2.
+    # If the candidate heading is a subheading of the abstract, return 2
     if any(section.heading == "Abstract" for section in section_stack) and heading_key in ABSTRACT_SUBHEADINGS:
         return 2
-    # If the candidate heading is a top-level heading, return 1.
+    # If the candidate heading is a top-level heading, return 1
     if heading_key in TOP_LEVEL_HEADINGS:
         return 1
-    # If the candidate heading is not a top-level heading, return the maximum of 1 and the candidate level.
+    # If the candidate heading is not a top-level heading, return the maximum of 1 and the candidate level
     if not section_stack:
         return max(1, candidate.level)
     if any(section.heading == "Abstract" for section in section_stack):
@@ -794,6 +965,7 @@ def extract_reference_block(
     """
     Extracts the reference boxes from the data.
     It uses the heading candidates to find the reference start and end boxes.
+
     Input:
         data: The data from the JSON file.
         heading_candidates: The heading candidates from the data.
@@ -801,20 +973,20 @@ def extract_reference_block(
         A list of boxes that contain the reference entries.
     """
 
-    # Sorts the heading candidates by page number and box index.
+    # Sorts the heading candidates by page number and box index
     ordered_candidates = sorted(
         heading_candidates.values(),
         key=lambda candidate: (candidate.page_number, candidate.box_index),
     )
 
-    # Finds the reference start box.
+    # Finds the reference start box
     reference_start: tuple[int, int] | None = None
     for candidate in ordered_candidates:
         if get_preferred_heading(candidate.text) == "references":
             reference_start = (candidate.page_number, candidate.box_index)
             break
 
-    # Extracts the reference boxes from the data.
+    # Extracts the reference boxes from the data
     reference_boxes: list[dict[str, Any]] = []
     if reference_start is not None:
         start_page, start_box_index = reference_start
@@ -827,7 +999,7 @@ def extract_reference_block(
                 reference_boxes.append(box)
         return reference_boxes
 
-    # Fallback to extracting any list-item or table boxes in the last 3 pages if the reference start box is not found.
+    # Fallback to extracting any list-item or table boxes in the last 3 pages if the reference start box is not found
     pages = data.get("pages", [])
     for page in pages[-3:]:
         candidate_boxes = [box for box in page.get("boxes", []) if box.get("boxclass") in {"list-item", "table"}]
@@ -842,6 +1014,7 @@ def extract_reference_block(
 def parse_references(reference_boxes: list[dict[str, Any]]) -> list[Reference]:
     """
     Parses the reference boxes into Reference objects.
+    
     Input:
         reference_boxes: A list of boxes that contain the reference entries.
     Returns:
@@ -851,7 +1024,7 @@ def parse_references(reference_boxes: list[dict[str, Any]]) -> list[Reference]:
     current_index: int | None = None
     current_text = ""
 
-    # Flushes the current reference and starts a new one.
+    # Flushes the current reference and starts a new one
     def flush_reference() -> None:
         nonlocal current_index, current_text
         cleaned = strip_special_chars(current_text)
@@ -865,12 +1038,12 @@ def parse_references(reference_boxes: list[dict[str, Any]]) -> list[Reference]:
 
     for box in reference_boxes:
         for entry_text in extract_reference_entries(box):
-            # If the reference text is empty, skip the entry.
+            # If the reference text is empty, skip the entry
             if not entry_text:
                 continue
 
-            # Parses the reference number and content from the reference text.
-            # If the reference number is found, flush the current reference and start a new one.
+            # Parses the reference number and content from the reference text
+            # If the reference number is found, flush the current reference and start a new one
             number, content = split_reference_number(entry_text)
             if number is not None:
                 flush_reference()
@@ -878,7 +1051,7 @@ def parse_references(reference_boxes: list[dict[str, Any]]) -> list[Reference]:
                 current_text = content or ""
                 continue
 
-            # If the reference is a list-item and the current text is not empty, flush the current reference and start a new one.
+            # If the reference is a list-item and the current text is not empty, flush the current reference and start a new one
             if box.get("boxclass") == "list-item" and current_text:
                 flush_reference()
                 current_index = None
@@ -901,7 +1074,7 @@ def extract_reference_entries(box: dict[str, Any]) -> list[str]:
         text = extract_box_text(box)
         return [text] if text else []
 
-    # If the box is a table, extract the reference entries from the cells in the table.
+    # If the box is a table, extract the reference entries from the cells in the table
     if boxclass == "table":
         entries = []
         for row in box.get("table", {}).get("extract", []):
@@ -913,33 +1086,53 @@ def extract_reference_entries(box: dict[str, Any]) -> list[str]:
     return []
 
 
-def citation_litmus(sections: list[Section]) -> bool:
+def citation_litmus(sections: list[Section]) -> re.Pattern | None:
     """
     Checks all sections for citation patterns.
     If text does not have square bracket formatted citations, return False.
-    Matched patterns: [number], [number-number], [number,number]
-    Returns:
-        True if citations are found in at least 3 sections, False otherwise.
-    """
-    count = 0
-    for section in sections:
-        if CITATION_PATTERN.search(section.text):
-            count += 1
-        elif AUTHOR_YEAR_PATTERN.search(section.text):
-            count += 1
-        else:
-            continue
-    return count >= 3
+    CITATION_PATTERN: [number], [number-number], [number,number] - e.g. [1], [1-3], [1,3]
+    AUTHOR_YEAR_PATTERN: (author, year) - e.g. (Author, 2026)
+    FALLBACK_CITATION_PATTERN: (number), (number-number), (number,number) - e.g. (1), (1-3), (1,3)
 
+    Returns the citation pattern with the highest count if it meets the following thresholds:
+        - at least 3 citation patterns
+        - at least 3 author year patterns
+        - at least 7 fallback citation patterns
+
+    Otherwise, returns None.
+    """
+    citation_count = 0
+    author_year_count = 0
+    fallback_citation_count = 0
+
+    for section in sections:
+        for _ in CITATION_PATTERN.finditer(section.text):
+            citation_count += 1
+        for _ in AUTHOR_YEAR_PATTERN.finditer(section.text):
+            author_year_count += 1
+        for _ in FALLBACK_CITATION_PATTERN.finditer(section.text):
+            fallback_citation_count += 1
+    
+    if max(citation_count, author_year_count, fallback_citation_count) == citation_count and citation_count >= 3:
+        return CITATION_PATTERN
+    elif max(citation_count, author_year_count, fallback_citation_count) == author_year_count and author_year_count >= 3:
+        return AUTHOR_YEAR_PATTERN
+    elif max(citation_count, author_year_count, fallback_citation_count) == fallback_citation_count and fallback_citation_count >= 7:
+        return FALLBACK_CITATION_PATTERN
+    else:
+        return None
 
 def parse_citation_block(citation_block: str) -> list[int]:
     """
     Expand a single bracketed citation block into citation numbers.
 
     Examples:
-        [1] -> [1]
-        [1, 3] -> [1, 3]
-        [1-3, 5] -> [1, 2, 3, 5]
+        - [1] -> [1]
+        - [1, 3] -> [1, 3]
+        - [1-3, 5] -> [1, 2, 3, 5]
+        - (1) -> [1]
+        - (1-3) -> [1, 2, 3]
+        - (1-3, 5) -> [1, 2, 3, 5]
     """
     numbers = citation_block.strip()[1:-1].replace("–", "-")
     citation_numbers: list[int] = []
@@ -960,10 +1153,11 @@ def parse_citation_block(citation_block: str) -> list[int]:
 
     return citation_numbers
 
-def associate_citations(sections: list[Section]) -> list[Section]:
+def associate_citations(sections: list[Section], citation_pattern: re.Pattern) -> list[Section]:
     """
     Associates bracketed numeric citations with each section text block.
-    Matched patterns: [number], [number-number], [number,number]
+    Citation pattern: CITATION_PATTERN, AUTHOR_YEAR_PATTERN, FALLBACK_CITATION_PATTERN
+
     Returns:
         A list of sections with the citations associated with each section.
     """
@@ -971,15 +1165,16 @@ def associate_citations(sections: list[Section]) -> list[Section]:
         if section.citations:
             continue
         
-        if AUTHOR_YEAR_PATTERN.search(section.text):
+        if citation_pattern == AUTHOR_YEAR_PATTERN:
             # Don't asscociate citations numbers if in-text citations (Harvard style) pattern is found
-            section.text = AUTHOR_YEAR_PATTERN.sub("", section.text)
+            section.text = citation_pattern.sub("", section.text)
         else:
             citation_numbers: list[int] = []
-            for match in CITATION_PATTERN.finditer(section.text):
-                citation_numbers.extend(parse_citation_block(match.group(0)))
-            section.text = CITATION_PATTERN.sub("", section.text)
+            for match in citation_pattern.finditer(section.text):
+                citation_numbers.extend(parse_citation_block(match.group(0).strip()))
+            section.text = citation_pattern.sub("", section.text)
             section.text = section.text.replace("[,]", "").replace("[–]","")
+            section.text = section.text.replace("(,)", "").replace("(–)", "")
             section.citations = citation_numbers
 
     return sections
@@ -987,6 +1182,8 @@ def associate_citations(sections: list[Section]) -> list[Section]:
 def enrich_document_references(doi: str, enricher: MetadataEnricher | None = None) -> list[Reference]:
     """
     Obtains the references in the document using the DOI.
+    Uses the Crossref API by default to enrich the references.
+
     Input:
         doi: The DOI of the document.
     Returns:
@@ -1024,27 +1221,27 @@ def enrich_document_references(doi: str, enricher: MetadataEnricher | None = Non
         if not isinstance(raw_reference, dict):
             continue
 
-        doi_value = normalize_doi(get_reference_value(raw_reference, "DOI", "doi"))         # Normalize the DOI.
-        pmid_value = get_reference_value(raw_reference, "PMID", "pmid") or None             # Extract the PMID.
-        url_value = get_reference_value(raw_reference, "URL", "url") or None                # Extract the URL.
-        unstructured = get_reference_value(raw_reference, "unstructured")                   # Extract the unstructured text.
+        doi_value = normalize_doi(get_reference_value(raw_reference, "DOI", "doi"))         # Normalize the DOI
+        pmid_value = get_reference_value(raw_reference, "PMID", "pmid") or None             # Extract the PMID
+        url_value = get_reference_value(raw_reference, "URL", "url") or None                # Extract the URL
+        unstructured = get_reference_value(raw_reference, "unstructured")                   # Extract the unstructured text
 
-        author = get_reference_value(raw_reference, "author")                               # Extract the author.  
-        title = get_reference_value(                                                        # Extract the title from the reference object.
+        author = get_reference_value(raw_reference, "author")                               # Extract the author
+        title = get_reference_value(                                                        # Extract the title from the reference object
             raw_reference,
             "article-title",
             "chapter-title",
             "series-title",
             "volume-title",
         )
-        journal = get_reference_value(raw_reference, "journal-title", "container-title")    # Extract the journal.
-        volume = get_reference_value(raw_reference, "volume")                               # Extract the volume.
-        issue = get_reference_value(raw_reference, "issue")                                 # Extract the issue.
-        first_page = get_reference_value(raw_reference, "first-page", "page")               # Extract the first page.
-        year = get_reference_value(raw_reference, "year")                                   # Extract the year.
+        journal = get_reference_value(raw_reference, "journal-title", "container-title")    # Extract the journal
+        volume = get_reference_value(raw_reference, "volume")                               # Extract the volume
+        issue = get_reference_value(raw_reference, "issue")                                 # Extract the issue
+        first_page = get_reference_value(raw_reference, "first-page", "page")               # Extract the first page
+        year = get_reference_value(raw_reference, "year")                                   # Extract the year
 
-        # Rebuild the reference text from the extracted values.
-        # Build the source parts of the reference text.
+        # Rebuild the reference text from the extracted values
+        # Build the source parts of the reference text
         source_parts: list[str] = []
         if journal:
             source_parts.append(journal)
@@ -1059,7 +1256,7 @@ def enrich_document_references(doi: str, enricher: MetadataEnricher | None = Non
         if year:
             source_parts.append(year)
 
-        # Build the text parts of the reference text.
+        # Build the text parts of the reference text
         text_parts: list[str] = []
         if author:
             text_parts.append(author)
@@ -1093,6 +1290,7 @@ def enrich_document_references(doi: str, enricher: MetadataEnricher | None = Non
 def count_reference_citations(sections: list[Section], references: list[Reference], metadata_enricher: MetadataEnricher | None = None) -> int:
     """
     Gets the total "is-referenced-by-count" of the references in the document.
+
     Input:
         references: The references of the document.
         metadata_enricher: The metadata enricher to use.
@@ -1103,7 +1301,7 @@ def count_reference_citations(sections: list[Section], references: list[Referenc
 
     reference_by_index = {reference.index: reference for reference in references if reference.doi}
 
-    # Fetch the citations count for the cited references.
+    # Fetch the citations count for the cited references
     def fetch_citations_count(reference: Reference) -> tuple[int, int]:
         try:
             enriched = metadata_enricher.enrich(reference.doi or "")
@@ -1126,7 +1324,7 @@ def count_reference_citations(sections: list[Section], references: list[Referenc
                 reference_index, citations_count = future.result()
                 reference_by_index[reference_index].citations_count = citations_count
     
-    # Count the number of citations and the citations reference count for each section.
+    # Count the number of citations and the citations reference count for each section
     for section in sections:
         if section.citations:
             section.number_of_citations = len(section.citations)
@@ -1150,6 +1348,9 @@ def iterate_boxes(data: dict[str, Any]):
 
 
 def iterate_spans(box: dict[str, Any]):
+    """
+    Iterates over all spans in the textlines of a box.
+    """
     if not box.get("textlines"):
         return
     for textline in box.get("textlines", []):
@@ -1160,9 +1361,9 @@ def get_preferred_heading(text: str) -> str:
     """
     Gets the preferred heading from the text.
     """
-    cleaned = strip_special_chars(text)                              # Strip special characters from the text.
-    cleaned = cleaned.lower()                                        # Convert the text to lowercase.
-    cleaned = HEADING_ALIASES.get(cleaned, cleaned)                  # Get the preferred heading from the heading aliases.
+    cleaned = strip_special_chars(text)                              # Strip special characters from the text
+    cleaned = cleaned.lower()                                        # Convert the text to lowercase
+    cleaned = HEADING_ALIASES.get(cleaned, cleaned)                  # Get the preferred heading from the heading aliases
     return cleaned
 
 def find_primary_doi(data: dict[str, Any], text: str) -> str | None:
@@ -1173,25 +1374,25 @@ def find_primary_doi(data: dict[str, Any], text: str) -> str | None:
     link_candidates: list[str] = []
     text_candidates: list[str] = []
 
-    # Finds all DOIs in the links (of the JSON data) of the first 3 pages.
+    # Finds all DOIs in the links (of the JSON data) of the first 3 pages
     for page in data.get("pages", [])[:3]:
         for box in page.get("boxes", []):
             for link in box.get("links", []):
                 uri = link.get("uri", "")
                 link_candidates.extend(match.group(1) for match in DOI_REGEX.finditer(uri))
 
-    # Finds all DOIs in the text.
+    # Finds all DOIs in the text
     text_candidates.extend(match.group(1) for match in DOI_REGEX.finditer(text))
     if not link_candidates and not text_candidates:
         return None
 
-    # Normalizes the DOIs and returns the most common DOI.
+    # Normalizes the DOIs and returns the most common DOI
     cleaned_link_candidates = [normalize_doi(candidate) for candidate in link_candidates if normalize_doi(candidate)]
     if cleaned_link_candidates:
         counts = Counter(cleaned_link_candidates)
         return counts.most_common(1)[0][0]
 
-    # If no DOIs are found in the links, normalize the DOIs in the text and return the most common DOI.
+    # If no DOIs are found in the links, normalize the DOIs in the text and return the most common DOI
     cleaned_text_candidates = [normalize_doi(candidate) for candidate in text_candidates if normalize_doi(candidate)]
     if not cleaned_text_candidates:
         return None
@@ -1237,12 +1438,12 @@ def build_reference(index: int | None, text: str) -> Reference:
     """
     Builds a Reference object from the text.
     """
-    doi = normalize_doi(text)                                               # Normalize the DOI.
-    urls = URL_REGEX.findall(text)                                          # Find all URLs in the text.
+    doi = normalize_doi(text)                                               # Normalize the DOI
+    urls = URL_REGEX.findall(text)                                          # Find all URLs in the text
     url = urls[0].rstrip(").,;") if urls else None
-    pmid_match = PMID_REGEX.search(text)                                    # Find the PMID in the text.
+    pmid_match = PMID_REGEX.search(text)                                    # Find the PMID in the text
     pmid = pmid_match.group(1) if pmid_match else None
-    return Reference(index=index, text=text, doi=doi, url=url, pmid=pmid)   # Return the Reference object.
+    return Reference(index=index, text=text, doi=doi, url=url, pmid=pmid)   # Return the Reference object
 
 
 def extract_box_text(box: dict[str, Any], min_size: float | None = None) -> str:
@@ -1252,15 +1453,15 @@ def extract_box_text(box: dict[str, Any], min_size: float | None = None) -> str:
     text = ""
     for span in iterate_spans(box):
         size = float(span.get("size", 0.0))
-        # If the size of the span is less than the minimum size, skip the span.
+        # If the size of the span is less than the minimum size, skip the span
         if min_size is not None and size and size < min_size:
-            # If the text matches the pattern of a citation, add it to the text.
+            # If the text matches the pattern of a citation, add it to the text
             if CITATION_PATTERN.search(span.get("text", "")):
                 text = merge_text_chunks(text, span.get("text", ""))
             continue
-        # Merge the text across all spans in the box.
+        # Merge the text across all spans in the box
         text = merge_text_chunks(text, span.get("text", ""))
-    # Strip special characters from the text.
+    # Strip special characters from the text
     return strip_special_chars(text)
 
 def merge_text_chunks(existing: str, new_text: str) -> str:
@@ -1268,16 +1469,16 @@ def merge_text_chunks(existing: str, new_text: str) -> str:
     Merges text new_text into existing text with defined rules.
     """
     new_text = strip_special_chars(new_text)
-    # If the new text is empty, return the existing text.
+    # If the new text is empty, return the existing text
     if not new_text:
         return existing
-    # If the existing text is empty, return the new text.
+    # If the existing text is empty, return the new text
     if not existing:
         return new_text
-    # If the existing text ends with a hyphen and the new text starts with an alphanumeric character, remove the hyphen and add the new text.
+    # If the existing text ends with a hyphen and the new text starts with an alphanumeric character, remove the hyphen and add the new text
     if existing.endswith("-") and new_text[:1].isalnum():
         return existing[:-1] + new_text
-    # If the existing text ends with a URL continuation and the new text starts with a URL continuation, add the new text to the existing text.
+    # If the existing text ends with a URL continuation and the new text starts with a URL continuation, add the new text to the existing text
     if check_url_characters(existing[-15:]) or new_text.startswith(("/", ".", "?", "&", "=")):
         return existing + new_text
     return f"{existing} {new_text}"
@@ -1321,10 +1522,10 @@ def is_unwanted_text(text: str) -> bool:
     Unwanted text is text that is not relevant to the content of the document.
     """
     lower = text.lower()
-    # Ignore selected text if it starts with a prefix in the IGNORE_PREFIXES list.
+    # Ignore selected text if it starts with a prefix in the IGNORE_PREFIXES list
     if any(lower.startswith(prefix) for prefix in IGNORE_PREFIXES):
         return True
-    # Ignore selected text if it matches the pattern of a page number (e.g. "1 of 10").
+    # Ignore selected text if it matches the pattern of a page number (e.g. "1 of 10")
     if re.fullmatch(r"-{1,3}\s*\d+\s+of\s+\d+\s*-{1,3}", lower):
         return True
     # Ignore selected text if it matches the pattern of a DOI.
@@ -1347,7 +1548,7 @@ def extract_date(payload: dict[str, Any] | None) -> str | None:
     date_parts = payload.get("date-parts", [])
     if not date_parts or not date_parts[0]:
         return None
-    # Return the date in the format YYYY-MM-DD.
+    # Return the date in the format YYYY-MM-DD
     return "-".join(str(part) for part in date_parts[0])
 
 
@@ -1359,11 +1560,11 @@ def is_filler_heading(text: str) -> bool:
     lowered = get_preferred_heading(text)
     if lowered in FILLER_HEADINGS:
         return True
-    # Ignore selected text if it contains a lot of commas, brackets, or at symbols.
+    # Ignore selected text if it contains a lot of commas, brackets, or at symbols
     if text.count(",") >= 3 or "[" in text or "@" in text:
         return True
-    # Ignore selected text if it is too long (it is likely a sentence instead of a heading).
-    if len(text.split()) > 20:
+    # Ignore selected text if it is too long (it is likely a sentence instead of a heading)
+    if len(text.split()) > 10:
         return True
     return False
 
@@ -1372,37 +1573,76 @@ def is_filler_heading(text: str) -> bool:
 # Acronym Matching Helper Functions
 # =======================================================
 
-def acronym_matches_full_form(full_form: str, acronym: str) -> bool:
+def acronym_matches_full_form(full_form: str, acronym: str) -> Optional[str]:
     """
-    Checks if the acronym matches the full form (excluding stop words).
-    For example, RDF matches the full form "Resource Description Framework".
-    Or USA matches the full form "United States of America".
-    Returns:
-        True if the acronym matches the full form (excluding stop words), False otherwise.
+    Checks if the acronym matches the full form.
+    Returns the trimmed full form if matched, or None if no match.
     """
     words = re.findall(r"[A-Za-z]+", full_form)
     significant_words = [w for w in words if w.lower() not in STOPWORDS]
-    initials = "".join(word[0] for word in significant_words)
-    # Return True if the first letter of each significant word is the same as the acronym.
-    return initials.lower() == acronym.lower()
-    
-def find_and_replace_acronyms(text: str, acronyms: LearnedAcronyms) -> str:
+    clean_acronym = acronym.replace("-", "")
+
+    # Strict matching: walk through acronym and significant words and track which word indices matched
+    acronym_idx = 0
+    matched_indices = []
+    for i, word in enumerate(significant_words):
+        if acronym_idx < len(clean_acronym) and word[0].lower() == clean_acronym[acronym_idx].lower():
+            # Ensure that the first significant word starts with a capital letter
+            if len(matched_indices) < 1 and not word[0].isupper():
+                continue
+            matched_indices.append(i)
+            acronym_idx += 1
+
+    if acronym_idx == len(clean_acronym) and matched_indices:
+        # Include all words between the first and last matched word and preserve intermediate words
+        # Example: "TMTB" -> "Trail-Making Test Part B" ("Part" is preserved)
+        start = matched_indices[0]
+        end = matched_indices[-1]
+        return " ".join(significant_words[start:end + 1])
+
+    # Fallback: threshold matching for stylised acronyms (if the acronym is not mixed case, return None)
+    has_mixed_case = any(c.islower() for c in clean_acronym) and any(c.isupper() for c in clean_acronym)
+    if not has_mixed_case:
+        return None
+
+    # Ensure at least 2 upper case letters are present in the acronym (otherwise do not apply fallback matching)
+    upper_letters = [c for c in clean_acronym if c.isupper()]
+    if len(upper_letters) < 2:
+        return None
+
+    # Find which significant words contain matched capital letters and track the first and last word that contributed
+    first_matched_word = None
+    last_matched_word = None
+    match_count = 0
+    for i, word in enumerate(words):
+        # Ensure that the first significant word starts with a capital letter
+        if match_count == 0 and not word[0].isupper():
+            continue
+        for letter in upper_letters[match_count:]:
+            pos = word.find(letter)
+            if pos != -1:
+                match_count += 1
+                if first_matched_word is None:
+                    first_matched_word = i
+                last_matched_word = i
+            else:
+                break
+
+    # Use the ratio of matched letters to the total number of letters in the acronym to determine if the match is strong enough
+    # If the match is strong enough, return the full form
+    if match_count / len(upper_letters) >= 0.5 and first_matched_word is not None:
+        return " ".join(words[first_matched_word:last_matched_word + 1])
+
+    return None
+
+def find_all_acronyms(text: str, acronyms: LearnedAcronyms) -> str:
     """
     Finds and replaces acronyms in the text with the full form.
     """
-    ACRONYM_REGEX = re.compile(
-    r"(?P<full_form>[A-Za-z][A-Za-z\s-]{2,}?)\s*\((?P<acronym>[A-Za-z][A-Za-z0-9-]{1,})\)"
-)
     matches = ACRONYM_REGEX.findall(text)
     for match in matches:
-        if acronym_matches_full_form(match[0], match[1]):
-            # Remove stop words form the start and end of the full form.
-            full_form = match[0].split()
-            full_form = [word for word in full_form if word.lower() not in STOPWORDS]
-            full_form = " ".join(full_form)
-
-            # Add the acronym and full form to the LearnedAcronyms object.
+        full_form = acronym_matches_full_form(match[0], match[1])
+        if full_form is not None:
             acronyms.add_acronym(match[1], full_form)
-    
-    # Replace any learned acronyms in the text with the full form.
-    return acronyms.replace_acronyms(text)
+
+    return acronyms

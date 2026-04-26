@@ -1,9 +1,14 @@
+"""
+This file contians utility functions used in the application and the pipeline modules (services.py)
+"""
 import re
 
 
 def normalize_term(value: str) -> str:
     """
     Normalizes a term by removing non-alphanumeric characters and converting to lowercase.
+    Example: "Hello World" -> "hello_world"
+
     Input:
         value: The term to normalize.
     Returns:
@@ -18,6 +23,7 @@ def normalize_term(value: str) -> str:
 def triple_key(subject: str, predicate: str, obj: str) -> str:
     """
     Creates a key for a triple by concatenating the normalized subject, predicate, and object.
+
     Input:
         subject: The subject of the triple.
         predicate: The predicate of the triple.
@@ -31,10 +37,11 @@ def triple_key(subject: str, predicate: str, obj: str) -> str:
 def edge_opacity(confidence: float) -> float:
     """
     Calculates the opacity for an edge based on the confidence score.
+
     Input:
         confidence: The confidence score of the edge.
     Returns:
         The opacity for the edge.
     """
     bounded = max(0.0, min(1.0, confidence))
-    return round(0.3 + 0.7 * bounded, 4)
+    return round(0.1 + 0.9 * bounded, 4)

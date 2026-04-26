@@ -8,6 +8,37 @@ Usage:
     python -m src.ukg_generate <pdf_path> [options]
     python src/ukg_generate.py <pdf_path> [options]
 
+Options
+    -o, --output:           Path for the RDF output file (default: output/<name>/<name>.ttl).
+    -f, --format:           RDF serialization format (default: turtle).
+    -m, --model:            spaCy model to use (default: en_core_web_lg).
+    -n, --namespace:        Base RDF namespace URI (default: http://example.org/ukg#).
+    -l, --label-file:       Path to a JSON file containing entity and relation labels (default: resources/labels/biomedical_labels.json).
+    -b, --blacklist:        Path to a CSV file containing blacklist terms or a directory containing blacklist CSV files (default: resources/blacklists).
+    -g, --ontology:         Path to an ontology .txt file or directory containing ontology .txt files (default: resources/ontologies).
+    -r, --require-ontology: Drop triples that don't match any ontology term (default: False).
+    --write-json:           Write the JSON file extracted from the PDF to disk.
+    --read-json:            Read the JSON file extracted from the PDF from disk instead of a PDF file.
+    --write-tuples:         Write tuples.txt file from the extracted results and skip triple generation.
+    --write-references:     Write references.txt file from the extracted results and skip triple generation.
+    --no-span-extraction:   Disable GLiNER entity and relation extraction (use only natural language pattern matching).
+    --disable-enrichment:   Disable enrichment of extracted DOI metadata using an external provider (default: False).
+    --span-model:           (GLiNER) Hugging Face model for span extraction (default: gliner-relex-large-v0.5).
+
+By default, the blacklists, ontology files, and label file are adapted to the biomedical domain.
+Here is the default structure of the resources/ directory:
+resources
+├── blacklists                     <-- applied by default
+│   ├── biomedical_blacklist.csv   
+│   └── default_blacklist.csv      
+├── labels
+│   ├── biomedical_labels.json     <-- applied by default
+│   └── generic_labels.json
+└── ontologies                     <-- applied by default
+    ├── cadro.txt                  
+    ├── snowmed_ct.txt             
+    └── umls_terms.txt               
+
 Examples:
     python src/ukg_generate.py corpus/open_access/paper.pdf
     python src/ukg_generate.py corpus/open_access/paper.pdf --format xml
@@ -18,6 +49,8 @@ from __future__ import annotations
 
 import argparse
 import sys
+import os
+import json
 from pathlib import Path
 
 try:
@@ -25,7 +58,7 @@ try:
     from src.generate_triples import generate_triples
 except ModuleNotFoundError:
     from extraction_module import extract_json_data, post_process_json_data
-    from generate_triples import generate_triples
+    from generate_triples import generate_triples, load_blacklist_files, build_blacklist_sets
 
 
 def main(argv: list[str] | None = None):
@@ -53,29 +86,50 @@ def main(argv: list[str] | None = None):
         help="Base RDF namespace URI.",
     )
     parser.add_argument(
-        "--ontology-dir", type=str, default=None,
-        help="Path to ontology resources directory.",
+        "-l", "--label-file", type=str, default="resources/labels/biomedical_labels.json",
+        help="Path to a JSON file containing entity and relation labels (default: resources/labels/biomedical_labels.json).",
     )
     parser.add_argument(
-        "--require-ontology", action="store_true",
+        "-b", "--blacklist", type=str, default="resources/blacklists",
+        help="Path to a CSV file containing blacklist terms or a directory containing blacklist CSV files.",
+    )
+    parser.add_argument(
+        "-g", "--ontology", type=str, default="resources/ontologies",
+        help="Path to an ontology .txt file or directory containing ontology .txt files (default: resources/ontologies).",
+    )
+    parser.add_argument(
+        "-r", "--require-ontology", action="store_true",
         help="Drop triples that don't match any ontology term.",
     )
     parser.add_argument(
-        "--tuples", type=str, default=None,
-        help="Path to an existing tuples.txt file (skip PDF extraction).",
+        "--write-json", action="store_true",
+        help="Write the JSON file extracted from the PDF to disk.",
+    )
+    parser.add_argument(
+        "--read-json", type=str, default=None,
+        help=f"Read the JSON file extracted from the PDF from disk instead of a PDF file (default: None).",
+        required=False,
+    )
+    parser.add_argument(
+        "--write-tuples", action="store_true",
+        help="Write tuples.txt file from the PDF and skip triple generation.",
+    )
+    parser.add_argument(
+        "--write-references", action="store_true",
+        help="Write references.txt file from the PDF and skip triple generation.",
     )
     parser.add_argument(
         "--no-span-extraction", action="store_true",
-        help="Disable span-based ML extraction (use only rule-based SVO).",
+        help="Disable span-based ML extraction (use only natural language pattern matching).",
     )
     parser.add_argument(
-        "--enrich-metadata", action="store_true",
-        help="Optionally enrich extracted DOI metadata using an external provider.",
+        "-d","--disable-enrichment", action="store_true",
+        help="Disable enrichment of extracted DOI metadata using an external provider.",
     )
     parser.add_argument(
         "--span-model", type=str,
         default="knowledgator/gliner-relex-large-v0.5",
-        help="Hugging Face model for span extraction (default: gliner-relex-large).",
+        help="Hugging Face model for span extraction (default: gliner-relex-large-v0.5).",
     )
 
     args = parser.parse_args(argv)
@@ -85,23 +139,99 @@ def main(argv: list[str] | None = None):
     # Determine (heading, text) tuples — either from a pre-existing file or
     # by running the full PDF extraction pipeline.
     extraction_result = None
-    if args.tuples:
-        tuples = _parse_tuples_file(args.tuples)
+
+    # Check if output directory exists
+    target_output_dir = Path("output") / pdf_path.stem
+    if not target_output_dir.exists():
+        print(f"Output directory not found: {target_output_dir}. Creating it...")
+        target_output_dir.mkdir(parents=True, exist_ok=True)
+        # Get absolute path to output directory
+    abs_output_dir = target_output_dir.absolute()
+    json_path = None
+    pdf_data = None
+
+    if args.write_tuples or args.write_references:
+        if not args.read_json:
+            print(f"[1/2] Extracting JSON from {pdf_path} ...")
+            json_path, pdf_data = extract_json_data(str(pdf_path), write_json=args.write_json, output_dir=abs_output_dir)
+            if pdf_data is None:
+                print("Error: PDF extraction failed.", file=sys.stderr)
+                sys.exit(1)
+        else:
+            json_path = args.read_json
+            if not Path(json_path).exists():
+                print(f"Error: JSON file not found: {json_path}", file=sys.stderr)
+                sys.exit(1)
+
+        # Generate the tuples file
+        if args.write_tuples:
+            print(f"[2/2] Writing (heading, text) tuples to {Path('output') / pdf_path.stem / f'{pdf_path.stem}.txt'} ...")
+        if args.write_references:
+            print(f"[2/2] Writing references to {Path('output') / pdf_path.stem / f'{pdf_path.stem}.references.txt'} ...")
+
+        
+        extraction_result = post_process_json_data(
+            str(json_path) if json_path else None,
+            data=pdf_data,
+            write_tuples=args.write_tuples,
+            write_references=args.write_references,
+            enrich_metadata=(not args.disable_enrichment),
+            enrich_references=(not args.disable_enrichment),
+            output_basename=pdf_path.stem,
+            output_dir=abs_output_dir,
+        )
+        if extraction_result is None:
+            print("Error: Failed to generate tuples or references.", file=sys.stderr)
+            sys.exit(1)
+
+        if args.write_tuples:
+            print(f"Tuples file saved to: {abs_output_dir / pdf_path.stem / f'{pdf_path.stem}.tuples.txt'}")
+        if args.write_references:
+            print(f"References file saved to: {abs_output_dir / pdf_path.stem / f'{pdf_path.stem}.references.txt'}")
+        sys.exit(0)
     else:
         if not pdf_path.is_file():
             print(f"Error: PDF file not found: {pdf_path}", file=sys.stderr)
             sys.exit(1)
 
-        print(f"[1/3] Extracting JSON from {pdf_path} ...")
-        json_path = extract_json_data(str(pdf_path))
-        if json_path is None:
-            print("Error: PDF extraction failed.", file=sys.stderr)
-            sys.exit(1)
+        # Parse the blacklist and ontology files
+        if args.blacklist:
+            blacklist_sets = parse_blacklist_files(args.blacklist)
+        else:
+            blacklist_sets = ([], [], [], [])
+        
+        # Parse the ontology files
+        if args.ontology:
+            ontology_files = parse_ontology_files(args.ontology)
+        else:
+            ontology_files = []
+
+        # Parse the label file
+        if args.label_file:
+            entity_labels, relation_labels = parse_label_file(args.label_file)
+        else:
+            entity_labels, relation_labels = None, None
+
+        if not args.read_json:
+            print(f"[1/3] Extracting JSON from {pdf_path} ...")
+            json_path, pdf_data = extract_json_data(str(pdf_path), write_json=args.write_json, output_dir=abs_output_dir)
+            if pdf_data is None:
+                print("Error: PDF extraction failed.", file=sys.stderr)
+                sys.exit(1)
+        else:
+            json_path = args.read_json
+            if not Path(json_path).exists():
+                print(f"Error: JSON file not found: {json_path}", file=sys.stderr)
+                sys.exit(1)
 
         print(f"[2/3] Post-processing JSON → (heading, text) tuples ...")
         extraction_result = post_process_json_data(
-            str(json_path),
-            enrich_metadata=args.enrich_metadata,
+            str(json_path) if json_path else None,
+            data=pdf_data,
+            enrich_metadata=(not args.disable_enrichment),
+            enrich_references=(not args.disable_enrichment),
+            output_basename=pdf_path.stem,
+            output_dir=abs_output_dir,
         )
         sections = extraction_result.sections
 
@@ -126,7 +256,10 @@ def main(argv: list[str] | None = None):
         base_namespace=args.namespace,
         output_path=output_path,
         output_format=args.format,
-        ontology_dir=args.ontology_dir,
+        ontology_files=ontology_files,
+        blacklist_sets=blacklist_sets,
+        entity_labels=entity_labels,
+        relation_labels=relation_labels,
         require_ontology_match=args.require_ontology,
         use_span_extraction=not args.no_span_extraction,
         span_model=args.span_model,
@@ -156,19 +289,66 @@ def main(argv: list[str] | None = None):
     if len(triples) > 10:
         print(f"  ... and {len(triples) - 10} more")
 
+def parse_blacklist_files(filepath: str) -> tuple[list[str], list[str], list[str], list[str]]:
+    """
+    Parse a blacklist file into a a tuple of lists (subject_excl_str, object_excl_str, subject_excl_word, object_excl_word).
+    The blacklist file is a CSV file with the following columns: term,category,rule,subject,object.
+    The headers of the CSV file are expected to be: term,category,rule,subject,object:
+        - term: The term to blacklist
+        - category: The category of the term
+        - rule: The rule to apply to the term (excl_only or excl)
+        - subject: Whether the term is a subject (1) or object (0)
+        - object: Whether the term is an object (1) or subject (0)
 
-def _parse_tuples_file(filepath: str) -> list[tuple[str, str]]:
-    """Parse a heading: text file into a list of (heading, text) pairs."""
-    results: list[tuple[str, str]] = []
+    Input:
+        filepath: The path to the blacklist file or directory.
+    Returns:
+        A tuple of lists (subject_excl_str, object_excl_str, subject_excl_word, object_excl_word). 
+        See build_blacklist_sets() in generate_triples.py for more details.
+    """
+    files = []
+
+    # Check if the filepath is a directory.
+    if os.path.isdir(filepath):
+        for file in os.listdir(filepath):
+            if file.endswith(".csv"):
+                files.append(os.path.join(filepath, file))
+    else:
+        files.append(filepath)
+    blacklists = load_blacklist_files(files)
+    return build_blacklist_sets(blacklists)
+
+def parse_ontology_files(filepath: str) -> list[str]:
+    """
+    Parse an ontology file or directory into a list of ontology term filepaths.
+    The ontology file is a text file with the following format:
+        - Each line is a single term.
+        - Terms are case-insensitive and spaces are normalized to underscores.
+    
+    Input:
+        filepath: The path to the ontology file or directory.
+    Returns:
+        A list of filepaths.
+    """
+    files = []
+    if os.path.isdir(filepath):
+        for file in os.listdir(filepath):
+            if file.endswith(".txt"):
+                files.append(os.path.join(filepath, file))
+    else:
+        files.append(filepath)
+    return files
+
+def parse_label_file(filepath: str) -> tuple[list[str], list[str]]:
+    """
+    Parse a label file into a tuple of lists (entity_labels, relation_labels).
+    The label file is a JSON file with the following format:
+        - entity_labels: A list of entity labels.
+        - relation_labels: A list of relation labels.
+    """
     with open(filepath, "r") as f:
-        for line in f:
-            line = line.strip()
-            if not line or ":" not in line:
-                continue
-            heading, text = line.split(":", 1)
-            results.append((heading.strip(), text.strip()))
-    return results
-
+        data = json.load(f)
+        return data["entity_labels"], data["relation_labels"]
 
 if __name__ == "__main__":
     main()
