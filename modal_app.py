@@ -6,9 +6,6 @@ extraction, post-processing, and DB persistence. Inputs and outputs use
 plain JSON-friendly types so the VPS never has to import the heavy
 pipeline modules — and therefore doesn't need spaCy / GLiNER / torch
 installed.
-
-Deploy:
-    modal deploy modal_app.py
 """
 
 from __future__ import annotations
@@ -42,22 +39,75 @@ app = modal.App("ukg-generator")
 @app.cls(
     image=image,
     gpu="T4",
-    scaledown_window=120,
+    scaledown_window=300,
     timeout=900,
+    enable_memory_snapshot=True,
+    # Set `min_containers=1` here if you want to eliminate cold starts
+    # entirely at the cost of a permanently-reserved T4. For a low-traffic
+    # research deployment the snapshot path below is usually fast enough
+    # (~3-5 s) without paying for an always-on GPU.
 )
 class Pipeline:
-    @modal.enter()
-    def load_models(self) -> None:
+    @modal.enter(snap=True)
+    def load_models_to_cpu(self) -> None:
+        """
+        Pre-snapshot warm-up. Imports heavy modules and loads spaCy +
+        GLiNER weights into CPU memory concurrently. Modal snapshots
+        the process after this returns; future cold starts restore the
+        snapshot instead of re-reading weights from disk.
+
+        GPU initialisation is deferred to `move_models_to_gpu` — CUDA
+        contexts cannot be captured by memory snapshotting.
+        """
+        import os
         import sys
+        from concurrent.futures import ThreadPoolExecutor
 
         sys.path.insert(0, "/app/src")
 
-        import spacy
-        from generate_triples import load_gliner
+        # Force CPU-only loading during the snapshot phase. The GPU is
+        # not attached at this point, and CUDA state can't be snapshotted.
+        os.environ["UKG_DISABLE_GPU"] = "1"
 
-        spacy.prefer_gpu()
-        spacy.load(SPACY_MODEL)
-        load_gliner(GLINER_MODEL)
+        from generate_triples import load_gliner, load_spacy
+
+        # spaCy and GLiNER have no inter-dependency; load them in
+        # parallel to take advantage of Modal's high disk bandwidth.
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            spacy_future = pool.submit(load_spacy, SPACY_MODEL)
+            gliner_future = pool.submit(load_gliner, GLINER_MODEL)
+            spacy_future.result()
+            gliner_future.result()
+
+    @modal.enter()
+    def move_models_to_gpu(self) -> None:
+        """
+        Post-snapshot hook (runs on every container start, cold or
+        restored). Re-enables GPU usage and moves the already-loaded
+        GLiNER weights onto CUDA — they were placed on CPU in
+        `load_models_to_cpu` so the snapshot would be valid.
+        """
+        import os
+
+        os.environ.pop("UKG_DISABLE_GPU", None)
+
+        import generate_triples
+
+        # Reset the cached GPU-availability flag set to False during
+        # the snap=True hook, then re-detect with a real GPU attached.
+        generate_triples.gpu_enabled = None
+        generate_triples.ensure_gpu()
+
+        try:
+            import torch
+
+            if torch.cuda.is_available():
+                for name, model in list(generate_triples.gliner_cache.items()):
+                    generate_triples.gliner_cache[name] = model.to("cuda")
+        except Exception:
+            # If CUDA init fails, fall back to CPU rather than crashing
+            # the worker — the pipeline is still correct, just slower.
+            pass
 
     @modal.method()
     def generate(
