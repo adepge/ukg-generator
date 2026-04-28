@@ -42,7 +42,7 @@ app = modal.App("ukg-generator")
 @app.cls(
     image=image,
     gpu="T4",
-    scaledown_window=300,
+    scaledown_window=120,
     timeout=900,
 )
 class Pipeline:
