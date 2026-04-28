@@ -1,14 +1,14 @@
 """
 Dataset Cleaning Module
 
-This module is used to clean the UMLS, SNOWMED, and CADRO datasets.
+This module is used to clean the UMLS, SNOMEDCT, and CADRO datasets.
 It takes a dataset file and cleans it into a list of terms as a .txt file.
 
 The directory structure used for this module is as follows:
 datasets
 ├── CADRO
 │   └── ontology.json
-├── SNOWMEDCT
+├── SNOMEDCT
 │   ├── Full
 │   │   ├── Refset
 │   │   │   ├── Content
@@ -24,7 +24,7 @@ datasets
     └── MRCONSO.RRF
 
 1. CADRO ontology.json was transcribed by hand from the CADRO website (https://iadrp.nia.nih.gov/about/cadro)
-2. SNOWMED CT was downloaded from the SNOWMED CT website - requires UMLS license (https://www.nlm.nih.gov/healthit/snomedct/international.html)
+2. SNOMED CT was downloaded from the SNOMED CT website - requires UMLS license (https://www.nlm.nih.gov/healthit/snomedct/international.html)
 3. UMLS (MRCONSO.RRF) was downloaded from the UMLS website (https://www.nlm.nih.gov/research/umls/licensedcontent/umlsknowledgesources.html)
 """
 
@@ -184,9 +184,9 @@ def cleanCADRO(dataset_file: str, output_file: str):
         for term in terms:
             f.write(f"{term}\n")
 
-def cleanSNOWMED(dataset_file: str, output_file: str):
+def cleanSNOMEDCT(dataset_file: str, output_file: str):
     """
-    Cleans the SNOWMED dataset file.
+    Cleans the SNOMEDCT dataset file.
     """
     with open(dataset_file, "r") as f: 
     
@@ -225,7 +225,7 @@ def cleanSNOWMED(dataset_file: str, output_file: str):
             f.write(f"{term}\n")
 
 if __name__ == "__main__":
-    clean = "snowmed"
+    clean = "snomedct"
     current_dir = os.path.dirname(os.path.abspath(__file__))
     if clean == "umls":
         dataset_file = os.path.join(current_dir, "datasets/UMLS/MRCONSO.RRF")
@@ -237,8 +237,8 @@ if __name__ == "__main__":
         output_file = os.path.join(current_dir, "resources/ontology/cadro/terms.txt")
         cleanCADRO(dataset_file, output_file)
         print("CADRO dataset cleaned successfully")
-    elif clean == "snowmed":
-        dataset_file = os.path.join(current_dir, "datasets/SNOWMEDCT/Full/Terminology/sct2_Description_Full-en_INT_20260101.txt")
-        output_file = os.path.join(current_dir, "resources/ontology/snowmedct/terms.txt")
-        cleanSNOWMED(dataset_file, output_file)
-        print("SNOWMEDCT dataset cleaned successfully")
+    elif clean == "snomedct":
+        dataset_file = os.path.join(current_dir, "datasets/SNOMEDCT/Full/Terminology/sct2_Description_Full-en_INT_20260101.txt")
+        output_file = os.path.join(current_dir, "resources/ontology/snomedct/terms.txt")
+        cleanSNOMEDCT(dataset_file, output_file)
+        print("SNOMEDCT dataset cleaned successfully")

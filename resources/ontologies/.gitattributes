@@ -1,2 +1,2 @@
-snowmed_ct.txt filter=lfs diff=lfs merge=lfs -text
 umls_terms.txt filter=lfs diff=lfs merge=lfs -text
+snomed_ct.txt filter=lfs diff=lfs merge=lfs -text

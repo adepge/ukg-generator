@@ -215,7 +215,6 @@ node_modules/
 # Output
 output/
 src/output/
-src/evaluation/
 
 # Backend media files
 backend/media/

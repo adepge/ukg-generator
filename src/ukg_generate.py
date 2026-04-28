@@ -36,7 +36,7 @@ resources
 │   └── generic_labels.json
 └── ontologies                     <-- applied by default
     ├── cadro.txt                  
-    ├── snowmed_ct.txt             
+    ├── snomed_ct.txt             
     └── umls_terms.txt               
 
 Examples:

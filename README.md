@@ -316,7 +316,7 @@ On the web application you do not need to define a custom JSON, you can directly
 
 These are `.txt` files of subject domain-specific terms which are used to boost the confidence score of a triple if one or more entities in the triple are found in the ontology.
 
-For example (snowmed_ct.txt):
+For example (snomed_ct.txt):
 ```
 ...
 Laryngeal edema
@@ -347,7 +347,7 @@ These are all located in the `resources` folder with this structure:
 │   └── generic_labels.json
 └── ontologies
     ├── cadro.txt
-    ├── snowmed_ct.txt
+    ├── snomed_ct.txt
     └── umls_terms.txt
 ```
 
@@ -396,7 +396,7 @@ All of the domain-specific settings are not hard-coded into the pipeline, but pa
 
 Doing these is significantly easier on the website as it provides controls for enabling/disabling settings through clicking buttons. Here are the steps that you should do in order of increasing effort (you do not have to apply all of them):
 
-1. **Disable the biomedical blacklist and existing ontologies**. Go to `Settings > Blacklists`, select `biomedical` in the dropdown, and click `Disable`. Then, go to `Settings > Ontologies` and uncheck `cadro`, `umls`, and `snowmed_ct`. The default blacklist will always be applied, but you can choose to search and filter 
+1. **Disable the biomedical blacklist and existing ontologies**. Go to `Settings > Blacklists`, select `biomedical` in the dropdown, and click `Disable`. Then, go to `Settings > Ontologies` and uncheck `cadro`, `umls`, and `snomed_ct`. The default blacklist will always be applied, but you can choose to search and filter 
 
 2. **Create your own entity/relation labels**. This is the most important first step because you can specify the types of entities and relations you want to extract. You can view the existing labels used by going to the `Settings > Labels` panel on the web application and selecting `biomedical`. The entity and relation extractor reliably returns the highest confidence triples. Once you've created your own label list, ensure you set it to active by clicking the `Use this label list` button after selecting it in the dropdown. 
 
