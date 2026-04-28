@@ -1,7 +1,13 @@
 import axios from "axios";
 
+// Base URL for the Django backend API.
+//
+// In production the SPA is served from the same origin as the API (behind
+// nginx/Caddy) so the default relative "/api" path Just Works. For local
+// development against `python manage.py runserver` on port 8000, set
+// `VITE_API_BASE_URL` in `frontend/.env.development`.
 const api = axios.create({
-  baseURL: "http://localhost:8000/api",
+  baseURL: import.meta.env.VITE_API_BASE_URL ?? "/api",
 });
 
 // API endpoints
