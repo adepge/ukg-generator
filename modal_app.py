@@ -42,10 +42,6 @@ app = modal.App("ukg-generator")
     scaledown_window=60,
     timeout=900,
     enable_memory_snapshot=True,
-    # Set `min_containers=1` here if you want to eliminate cold starts
-    # entirely at the cost of a permanently-reserved T4. For a low-traffic
-    # research deployment the snapshot path below is usually fast enough
-    # (~3-5 s) without paying for an always-on GPU.
 )
 class Pipeline:
     @modal.enter(snap=True)
@@ -64,15 +60,11 @@ class Pipeline:
         from concurrent.futures import ThreadPoolExecutor
 
         sys.path.insert(0, "/app/src")
-
-        # Force CPU-only loading during the snapshot phase. The GPU is
-        # not attached at this point, and CUDA state can't be snapshotted.
         os.environ["UKG_DISABLE_GPU"] = "1"
 
         from generate_triples import load_gliner, load_spacy
 
-        # spaCy and GLiNER have no inter-dependency; load them in
-        # parallel to take advantage of Modal's high disk bandwidth.
+        # Load the spaCy and GLiNER models in parallel.
         with ThreadPoolExecutor(max_workers=2) as pool:
             spacy_future = pool.submit(load_spacy, SPACY_MODEL)
             gliner_future = pool.submit(load_gliner, GLINER_MODEL)
@@ -93,8 +85,6 @@ class Pipeline:
 
         import generate_triples
 
-        # Reset the cached GPU-availability flag set to False during
-        # the snap=True hook, then re-detect with a real GPU attached.
         generate_triples.gpu_enabled = None
         generate_triples.ensure_gpu()
 
@@ -105,8 +95,6 @@ class Pipeline:
                 for name, model in list(generate_triples.gliner_cache.items()):
                     generate_triples.gliner_cache[name] = model.to("cuda")
         except Exception:
-            # If CUDA init fails, fall back to CPU rather than crashing
-            # the worker — the pipeline is still correct, just slower.
             pass
 
     @modal.method()
