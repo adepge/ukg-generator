@@ -3,7 +3,23 @@ Lightweight, dependency-free dataclasses shared by the UKG pipeline stages.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any, NamedTuple, Optional
+
+
+class Triple(NamedTuple):
+    """
+    Represents an extracted (subject, predicate, object) triple with
+    evidence of the triple.
+    """
+    sub: str                            # Subject of the triple.
+    pred: str                           # Predicate of the triple.
+    obj: str                            # Object of the triple.
+    conf: float = 0.0                   # Confidence score of the triple.
+    source: str = ""                    # Source of the triple (its extraction method).
+    section: str = ""                   # Section of the triple.
+
+    def __str__(self) -> str:
+        return f"({self.sub}, {self.pred}, {self.obj})"
 
 
 @dataclass

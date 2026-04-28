@@ -6,7 +6,6 @@ the processed documents (PDFs).
 import sys
 from dataclasses import asdict
 from pathlib import Path
-from types import SimpleNamespace
 
 import modal
 from django.conf import settings
@@ -49,9 +48,11 @@ class ExtractionPipelineService:
     def import_pipeline_modules(self):
         """
         Lazy-import the pipeline modules the VPS still runs locally:
-        PDF extraction (extraction_module) and the lightweight resource
-        loaders (pipeline_io). The GPU stage runs on Modal, so
-        generate_triples is intentionally not imported here.
+        PDF extraction (extraction_module), the lightweight resource
+        loaders (pipeline_io), and the post-processing helpers
+        (pipeline_filters: blacklist filtering + ontology boosting).
+        The GPU stage (spaCy + GLiNER) runs on Modal, so generate_triples
+        is intentionally not imported here.
         """
         src_text = str(self.src_dir)
         if src_text not in sys.path:
@@ -60,14 +61,19 @@ class ExtractionPipelineService:
         try:
             from extraction_module import extract_json_data, post_process_json_data
             from pipeline_io import build_blacklist_sets, load_ontology_terms
+            from pipeline_filters import OntologyFilter, filter_triples
+            from pipeline_types import Triple
         except ModuleNotFoundError as exc:
             raise PipelineImportError("Could not import pipeline modules from src/") from exc
-        return (
-            extract_json_data,
-            post_process_json_data,
-            build_blacklist_sets,
-            load_ontology_terms,
-        )
+        return {
+            "extract_json_data": extract_json_data,
+            "post_process_json_data": post_process_json_data,
+            "build_blacklist_sets": build_blacklist_sets,
+            "load_ontology_terms": load_ontology_terms,
+            "filter_triples": filter_triples,
+            "OntologyFilter": OntologyFilter,
+            "Triple": Triple,
+        }
 
     @staticmethod
     def build_db_blacklist_sets(build_blacklist_sets):
@@ -149,14 +155,16 @@ class ExtractionPipelineService:
         Raises:
             RuntimeError: If the PDF extraction returns no data
         """
-        # Import the pipeline modules (extraction + lightweight loaders only —
-        # the GPU stage lives on Modal)
-        (
-            extract_json_data,
-            post_process_json_data,
-            build_blacklist_sets,
-            load_ontology_terms,
-        ) = self.import_pipeline_modules()
+        # Import the pipeline modules (extraction + lightweight loaders +
+        # filter helpers; the GPU stage lives on Modal).
+        modules = self.import_pipeline_modules()
+        extract_json_data = modules["extract_json_data"]
+        post_process_json_data = modules["post_process_json_data"]
+        build_blacklist_sets = modules["build_blacklist_sets"]
+        load_ontology_terms = modules["load_ontology_terms"]
+        filter_triples = modules["filter_triples"]
+        OntologyFilter = modules["OntologyFilter"]
+        Triple = modules["Triple"]
 
         # Load the blacklist/ontology/label configuration from the settings DB
         blacklist_sets = self.build_db_blacklist_sets(build_blacklist_sets)
@@ -182,51 +190,49 @@ class ExtractionPipelineService:
             output_basename=Path(document.file.name).stem,
         )
 
-        # Generate triples on Modal. Sections cross the wire as plain dicts
-        # (Modal rebuilds Section dataclasses) and ontology terms as a list
-        # so the payload is JSON-friendly.
-        triples = self.generate_triples_on_modal(
+        # Run the GPU stage on Modal to generate triples.
+        raw_triples = self.generate_triples_on_modal(
             sections=extraction_result.sections,
-            blacklist_sets=blacklist_sets,
-            ontology_terms=ontology_terms,
             entity_labels=entity_labels,
             relation_labels=relation_labels,
+            triple_cls=Triple,
         )
+
+        # Apply post-processing: triple filtering and ontology boosting.
+        filtered_triples = filter_triples(raw_triples, blacklist_sets)
+        if ontology_terms:
+            filtered_triples = OntologyFilter(ontology_terms).boost(
+                filtered_triples, require_match=False,
+            )
 
         # Persist the extraction result and emitted triples atomically
         with transaction.atomic():
             return self.persist_extraction(
                 document=document,
                 extraction_result=extraction_result,
-                triples=triples,
+                triples=filtered_triples,
             )
 
     @staticmethod
     def generate_triples_on_modal(
         *,
         sections,
-        blacklist_sets,
-        ontology_terms,
         entity_labels,
         relation_labels,
-        require_ontology_match: bool = False,
-    ) -> list[SimpleNamespace]:
+        triple_cls,
+    ) -> list:
         """
-        Invoke the deployed Modal Pipeline.generate method and adapt the
-        returned dicts into objects with attribute access so the existing
-        persist_extraction code (which uses triple.sub, triple.conf, ...)
-        keeps working unchanged.
+        Invoke the deployed Modal Pipeline.generate method and rebuild
+        `pipeline_types.Triple` namedtuples from its dict payload so the
+        downstream filtering helpers work unchanged.
         """
         pipeline = modal.Cls.from_name(MODAL_APP_NAME, MODAL_PIPELINE_CLS_NAME)()
         triple_dicts = pipeline.generate.remote(
             sections=[asdict(sec) for sec in sections],
-            blacklist_sets=blacklist_sets,
-            ontology_terms=list(ontology_terms),
             entity_labels=entity_labels,
             relation_labels=relation_labels,
-            require_ontology_match=require_ontology_match,
         )
-        return [SimpleNamespace(**t) for t in triple_dicts]
+        return [triple_cls(**t) for t in triple_dicts]
 
     def persist_extraction(
         self,

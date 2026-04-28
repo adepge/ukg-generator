@@ -1,9 +1,5 @@
 """
-Stdlib-only helpers for loading the pipeline's resource files.
-
-Lives outside generate_triples.py so callers — notably the Django backend
-on a Modal-fronted VPS — can read ontologies and blacklists without
-pulling spaCy / GLiNER / rdflib into the process.
+Helpers for loading the pipeline's resource files.
 """
 
 import csv

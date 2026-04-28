@@ -14,11 +14,16 @@ import threading
 import spacy
 
 from pathlib import Path
-from typing import Iterable, NamedTuple
+from typing import Iterable
 from gliner import GLiNER
 from spacy.tokens import Doc, Span
 from rdflib import Graph, Literal, Namespace, URIRef
-from pipeline_types import Section
+from pipeline_types import Section, Triple
+from pipeline_filters import (
+    OntologyFilter,
+    filter_triples,
+    remove_duplicates,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -127,23 +132,6 @@ def load_gliner(model_name: str) -> GLiNER:
         # Cache the GLiNER model for future use.
         gliner_cache[model_name] = model
         return model
-
-
-# ---------------------------------------------------------------------------
-# Data structures
-# ---------------------------------------------------------------------------
-
-class Triple(NamedTuple):
-    """Represents an extracted triple with provenance metadata."""
-    sub: str                            # Subject of the triple.
-    pred: str                           # Predicate of the triple.
-    obj: str                            # Object of the triple.
-    conf: float = 0.0                   # Confidence score of the triple.
-    source: str = ""                    # Source of the triple (its extraction method).
-    section: str = ""                   # Section of the triple.
-
-    def __str__(self):
-        return f"({self.sub}, {self.pred}, {self.obj})"
 
 
 # ---------------------------------------------------------------------------
@@ -759,183 +747,47 @@ class RDFSerializer:
 
 
 # ---------------------------------------------------------------------------
-# Ontology-aware confidence boosting
+# Pipeline entry points
 # ---------------------------------------------------------------------------
 
-class OntologyFilter:
+def extract_triples(
+    sections: list[Section],
+    model_name: str = "en_core_web_lg",
+    use_span_extraction: bool = True,
+    span_model: str = "knowledgator/gliner-relex-large-v0.5",
+    entity_labels: dict[str, str] | list[str] | None = None,
+    relation_labels: list[str] | None = None,
+) -> list[Triple]:
     """
-    Loads domain term lists from resources/ontology/ and adjusts triple
-    confidence when subjects or objects match known ontology terms.
-
-    Term sets are cached per resources directory across calls so repeated
-    invocations within a process don't re-walk the filesystem or re-parse
-    the (large) UMLS / SNOMED text files.
+    GPU-stage of the pipeline: run spaCy + GLiNER and return triples.
+    Used by `modal_app.py`.
     """
+    extractor = TripleExtractor(model_name)
 
-    def __init__(self, terms: Iterable[str]):
-        self.terms: frozenset[str] = terms if isinstance(terms, frozenset) else frozenset(terms)
+    all_triples: list[Triple] = []
+    sentence_texts: list[str] = []
+    sentence_sections: list[str] = []
 
-    def normalize(self, text: str) -> str:
-        return text.replace("_", " ").lower()
+    docs = extractor.nlp.pipe((section.text for section in sections), batch_size=32)
+    for section, doc in zip(sections, docs):
+        all_triples.extend(extractor.extract_from_doc(doc, section=section.heading))
+        if use_span_extraction:
+            for sent in doc.sents:
+                sentence_texts.append(sent.text)
+                sentence_sections.append(section.heading)
 
-    def matches(self, text: str) -> bool:
-        return self.normalize(text) in self.terms
+    if use_span_extraction:
+        span_extractor = SpanRelationExtractor(
+            model_name=span_model,
+            entity_labels=entity_labels,
+            relation_labels=relation_labels,
+        )
+        all_triples.extend(
+            span_extractor.extract_from_texts(sentence_texts, sections=sentence_sections)
+        )
 
-    def boost(
-        self,
-        triples: list[Triple],
-        boost_amount: float = 0.05,
-        require_match: bool = False,
-    ) -> list[Triple]:
-        """
-        Boost confidence of triples whose subject or object matches a known
-        ontology term. When require_match is True, triples with no matching
-        term are dropped entirely.
-        """
-        result: list[Triple] = []
-        for t in triples:
-            sub_match = self.matches(t.sub)
-            obj_match = self.matches(t.obj)
+    return remove_duplicates(all_triples)
 
-            if require_match and not (sub_match or obj_match):
-                continue
-
-            new_conf = t.conf
-            if sub_match:
-                new_conf = min(new_conf + boost_amount, 1.0)
-            if obj_match:
-                new_conf = min(new_conf + boost_amount, 1.0)
-
-            result.append(t._replace(conf=new_conf))
-
-        return result
-
-# ---------------------------------------------------------------------------
-# Triple filtering and validation
-# ---------------------------------------------------------------------------
-def remove_duplicates(triples: list[Triple]) -> list[Triple]:
-    """
-    Remove duplicates, keeping the first (highest-confidence) occurrence.
-    Boost the confidence of the existing triple by 0.001 for each duplicate.
-    For example, if there are 3 duplicates, the confidence will be boosted by 0.015.
-    
-    Input:
-        triples: The list of triples to remove duplicates from.
-    Returns:
-        A list of unique triples.
-    """
-    seen: set[tuple[str, str, str]] = set()
-    unique: list[Triple] = []
-    for t in triples:
-        key = (t.sub, t.pred, t.obj)
-        if key not in seen:
-            seen.add(key)
-            unique.append(t)
-        else:
-            # Add to the confidence of the existing triple
-            existing = next(t for t in unique if t.sub == key[0] and t.pred == key[1] and t.obj == key[2])
-            existing = existing._replace(conf=existing.conf + 0.001)
-    return unique
-
-def is_invalid_string(text: str) -> bool:
-    """
-    Return True when a string is an invalid entity or predicate.
-    Used to filter out invalid triples.
-
-    Input:
-        text: The string to check.
-    Returns:
-        True if the string is an invalid entity or predicate, False if it is valid.
-    """
-    normalized = text.replace("_", " ").strip().lower()
-
-    # String must be at least 3 characters long.
-    if len(normalized) < 3:
-        return True
-
-    # String must not contain any numbers.
-    if re.search(r"\d+(\.\d+)?%?", normalized):
-        return True
-
-    # String must not contain any special characters.
-    if any(char in normalized for char in SPECIAL_ENTITY_CHARS):
-        return True
-    return False
-
-def normalize_blacklist_entity(text: str) -> str:
-    return text.strip().replace(" ", "_").lower()
-
-def match_entity_string(text: str, blacklist: list[str]) -> bool:
-    """
-    Check if an entity contains a substring from the blacklist.
-
-    Input:
-        text: The string to check.
-        blacklist: The list of substrings to check for.
-    Returns:
-        True if the entity contains the substring, False otherwise.
-    """
-    text_norm = normalize_blacklist_entity(text)
-    for substring in blacklist:
-        substring = normalize_blacklist_entity(substring)
-        if substring in text_norm:
-            return True
-    return False
-
-def match_entity_exact(text: str, blacklist: list[str]) -> bool:
-    """
-    Check if an entity is exactly the same as any term from the blacklist.
-
-    Input:
-        text: The string to check.
-        blacklist: The list of terms to check for.
-    Returns:
-        True if the entity is exactly the same as the term, False otherwise.
-    """
-    text_norm = normalize_blacklist_entity(text)
-    for term in blacklist:
-        if text_norm == normalize_blacklist_entity(term):
-            return True
-    return False
-
-def match_stopwords(text:str, stopwords: list[str]) -> bool:
-    """
-    Check if a string is a stopword (exact match).
-    """
-    return text.strip().lower() in stopwords
-
-def filter_triples(triples: list[Triple], blacklist_sets: tuple[list[str], list[str], list[str], list[str]], stopwords: list[str] = []):
-    """
-    Filter out triples that match any of the terms in the blacklist with specific rules.
-
-    Input:
-        triples: The list of triples to filter.
-        blacklist_sets: The blacklist sets to use.
-        stopwords: The list of stopwords to filter out.
-    Returns:
-        A list of triples that do not match any of the terms in the blacklist.
-    """
-    result: list[Triple] = []
-    subject_excl_str, object_excl_str, subject_excl_word, object_excl_word = blacklist_sets
-    for triple in triples:
-        # Filter out triples with invalid entities or predicates.
-        if is_invalid_string(triple.sub) or is_invalid_string(triple.pred) or is_invalid_string(triple.obj):
-            continue
-        # Filter out triples with stopwords.
-        if match_stopwords(triple.sub, stopwords) or match_stopwords(triple.obj, stopwords):
-            continue
-        # Filter out triples with entities or objects that contain the substring blacklist terms.
-        if match_entity_string(triple.sub, subject_excl_str) or match_entity_string(triple.obj, object_excl_str):
-            continue
-        # Filter out triples with entities or objects that contain the word blacklist terms.
-        if match_entity_exact(triple.sub, subject_excl_word) or match_entity_exact(triple.obj, object_excl_word):
-            continue
-        result.append(triple)
-    return result
-
-# ---------------------------------------------------------------------------
-# Pipeline entry point
-# ---------------------------------------------------------------------------
 
 def generate_triples(
     sections: list[Section],
@@ -976,43 +828,23 @@ def generate_triples(
     Returns:
         List of extracted Triple objects.
     """
-    extractor = TripleExtractor(model_name)
+    all_triples = extract_triples(
+        sections=sections,
+        model_name=model_name,
+        use_span_extraction=use_span_extraction,
+        span_model=span_model,
+        entity_labels=entity_labels,
+        relation_labels=relation_labels,
+    )
 
-    all_triples: list[Triple] = []
-    sentence_texts: list[str] = []
-    sentence_sections: list[str] = []
-    stopwords: list[str] = list(extractor.nlp.Defaults.stop_words)
+    # filter_triples falls back to pipeline_filters.ENGLISH_STOPWORDS.
+    all_triples = filter_triples(all_triples, blacklist_sets)
 
-    # Run the spaCy pipeline on the sections once and then extract the triples from the docs.
-    docs = extractor.nlp.pipe((section.text for section in sections), batch_size=32)
-    for section, doc in zip(sections, docs):
-        all_triples.extend(extractor.extract_from_doc(doc, section=section.heading))
-        if use_span_extraction:
-            for sent in doc.sents:
-                sentence_texts.append(sent.text)
-                sentence_sections.append(section.heading)
-
-    # If span extraction is enabled, extract the triples from the sentences using GLiNER-relex.
-    if use_span_extraction:
-        span_extractor = SpanRelationExtractor(
-            model_name=span_model,
-            entity_labels=entity_labels,
-            relation_labels=relation_labels,
-        )
-        all_triples.extend(
-            span_extractor.extract_from_texts(sentence_texts, sections=sentence_sections)
-        )
-
-    all_triples = remove_duplicates(all_triples)
-    all_triples = filter_triples(all_triples, blacklist_sets, stopwords)
-
-    ont_filter = OntologyFilter(ontology_terms) if ontology_terms else None
-    if ont_filter:
-        all_triples = ont_filter.boost(
+    if ontology_terms:
+        all_triples = OntologyFilter(ontology_terms).boost(
             all_triples, require_match=require_ontology_match,
         )
 
-    # If an output path is provided, serialize the triples to the output file.
     if output_path:
         serializer = RDFSerializer(base_namespace)
         serializer.add_triples(all_triples)
