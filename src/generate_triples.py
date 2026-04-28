@@ -18,7 +18,7 @@ from typing import Iterable, NamedTuple
 from gliner import GLiNER
 from spacy.tokens import Doc, Span
 from rdflib import Graph, Literal, Namespace, URIRef
-from extraction_module import Section
+from pipeline_types import Section
 
 logger = logging.getLogger(__name__)
 

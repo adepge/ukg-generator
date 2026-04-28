@@ -92,8 +92,8 @@ class Pipeline:
 
         sys.path.insert(0, "/app/src")
 
-        from extraction_module import Section
         from generate_triples import generate_triples
+        from pipeline_types import Section
 
         section_objs = [Section(**s) for s in sections]
         triples = generate_triples(
