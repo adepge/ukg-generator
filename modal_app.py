@@ -39,7 +39,7 @@ app = modal.App("ukg-generator")
 @app.cls(
     image=image,
     gpu=["A10", "L4", "T4"],
-    scaledown_window=60,
+    scaledown_window=300,
     timeout=900,
     enable_memory_snapshot=True,
 )

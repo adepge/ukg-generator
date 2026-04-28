@@ -117,6 +117,9 @@ function getFileStem(file) {
             {{ counts.failed }} failed
           </span>
         </div>
+        <p class="progress-tooltip-status">
+          Note: Each document may take up to 60 seconds to process
+        </p>
         <p class="progress-tooltip-status">{{ statusLabel }}</p>
       </div>
     </Transition>
