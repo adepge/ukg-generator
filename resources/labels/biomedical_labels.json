@@ -2,7 +2,7 @@
     "entity_labels": {
         "disease": "A disease, disorder, syndrome, or diagnosed medical condition.",
         "symptom": "A symptom, sign, complaint, or clinical manifestation experienced by a patient.",
-        "risk factor": "An exposure, comorbidity, trait, or circumstance associated with higher or lower disease risk.",
+        "risk factor": "An exposure, comorbidity, trait, or circumstance associated with higher disease risk.",
         "biomarker": "A measurable biological, imaging, or laboratory marker used to indicate disease or physiology.",
         "drug": "A medication, pharmaceutical compound, or administered therapeutic substance.",
         "treatment": "A treatment, intervention, therapy, procedure, or clinical management strategy.",
