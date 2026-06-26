@@ -3,6 +3,8 @@ The file contains the services (containing all the pipeline modules) for creatin
 the processed documents (PDFs).
 """
 
+import logging
+import os
 import sys
 from pathlib import Path
 from django.conf import settings
@@ -20,6 +22,9 @@ from .models import (
     TripleEvidence,
 )
 from .utils import normalize_term, triple_key
+
+
+logger = logging.getLogger(__name__)
 
 
 class PipelineImportError(RuntimeError):
@@ -51,6 +56,20 @@ class ExtractionPipelineService:
         except ModuleNotFoundError as exc:
             raise PipelineImportError("Could not import legacy pipeline modules from src/") from exc
         return extract_json_data, post_process_json_data, generate_triples, build_blacklist_sets
+
+    def import_evaluation_module(self):
+        """
+        Import the LLM-as-judge evaluation helpers from the src directory.
+        """
+        src_text = str(self.src_dir)
+        if src_text not in sys.path:
+            sys.path.insert(0, src_text)
+
+        try:
+            from evaluation import evaluate_triples, write_report_json
+        except ModuleNotFoundError as exc:
+            raise PipelineImportError("Could not import evaluation module from src/") from exc
+        return evaluate_triples, write_report_json
 
     @staticmethod
     def build_db_blacklist_sets(build_blacklist_sets):
@@ -165,12 +184,135 @@ class ExtractionPipelineService:
             relation_labels=relation_labels,
         )
 
+        # Score triples with the LLM-as-judge and drop low-quality ones
+        triples = self.evaluate_and_filter_triples(
+            triples,
+            entity_labels=entity_labels,
+            relation_labels=relation_labels,
+            document=document,
+        )
+
         # Persist the extraction result and emitted triples atomically
         with transaction.atomic():
             return self.persist_extraction(
                 document=document,
                 extraction_result=extraction_result,
                 triples=triples,
+            )
+
+    def evaluate_and_filter_triples(
+        self,
+        triples,
+        entity_labels,
+        relation_labels,
+        document: Document | None = None,
+    ):
+        """
+        Score triples with the LLM-as-judge and keep only those whose mean
+        normalized score (0-1, averaged across all dimensions) is at least
+        ``settings.UKG_JUDGE_MIN_SCORE``.
+
+        The step is skipped (all triples kept) when evaluation is disabled, when
+        there are no triples, or when no API key is configured. Any evaluation
+        error also fails open (keeps all triples) so a transient outage never
+        discards an entire document's triples. Triples the judge could not score
+        are likewise kept.
+
+        When ``document`` is supplied, the full evaluation report (aggregates and
+        per-triple scores) is written to disk under ``settings.UKG_EVAL_REPORT_DIR``.
+
+        Args:
+            triples: The pipeline Triple objects to evaluate.
+            entity_labels: Active entity labels (domain schema for the judge).
+            relation_labels: Active relation labels (domain schema for the judge).
+            document: The document being processed (used to name the report file).
+        Returns:
+            The filtered list of triples.
+        """
+        if not triples:
+            return triples
+        if not getattr(settings, "UKG_JUDGE_EVALUATION_ENABLED", True):
+            return triples
+
+        try:
+            evaluate_triples, write_report_json = self.import_evaluation_module()
+        except PipelineImportError as exc:
+            logger.warning("Skipping LLM-as-judge evaluation: %s", exc)
+            return triples
+
+        # Environment is loaded in the Django settings file
+        if not os.environ.get("OPENAI_API_KEY"):
+            logger.warning(
+                "LLM-as-judge evaluation enabled but OPENAI_API_KEY is not set; "
+                "keeping all %d triples.", len(triples),
+            )
+            return triples
+
+        threshold = float(getattr(settings, "UKG_JUDGE_MIN_SCORE", 0.5))
+        try:
+            report = evaluate_triples(
+                triples,
+                entity_labels=entity_labels,
+                relation_labels=relation_labels,
+            )
+        except Exception as exc:
+            # Keep all triples if the evaluation fails.
+            logger.exception(
+                "LLM-as-judge evaluation failed; keeping all %d triples. (%s)",
+                len(triples), exc,
+            )
+            return triples
+
+        # Persist the full report to disk (best-effort; never blocks ingestion).
+        if document is not None:
+            self.save_evaluation_report(write_report_json, report, document)
+
+        kept = []
+        dropped = 0
+        unscored = 0
+        # Evaluate the triples in the order they were generated.
+        for original, evaluation in zip(triples, report.evaluations):
+            if evaluation.normalized is None:
+                unscored += 1
+                kept.append(original)
+                continue
+            if evaluation.normalized >= threshold:
+                kept.append(original)
+            else:
+                dropped += 1
+
+        logger.info(
+            "LLM-as-judge (%s): kept %d/%d triples "
+            "(dropped %d below %.2f; %d unscored kept).",
+            report.model, len(kept), len(triples), dropped, threshold, unscored,
+        )
+        return kept
+
+    @staticmethod
+    def save_evaluation_report(write_report_json, report, document: Document) -> None:
+        """
+        Write the LLM-as-judge report for a document to disk as JSON.
+
+        The file is saved under ``settings.UKG_EVAL_REPORT_DIR`` and named after
+        the document (its source filename stem and primary key).
+        Failures are logged but not raised.
+
+        Args:
+            write_report_json: The evaluation module's JSON writer.
+            report: The EvaluationReport to persist.
+            document: The document the report belongs to.
+        """
+        try:
+            report_dir = Path(getattr(settings, "UKG_EVAL_REPORT_DIR"))
+            report_dir.mkdir(parents=True, exist_ok=True)
+            stem = Path(document.file.name).stem if document.file else "document"
+            output_path = report_dir / f"{stem}_{document.id}.eval.json"
+            write_report_json(report, output_path)
+            logger.info("Saved LLM-as-judge report to %s", output_path)
+        except Exception as exc:
+            logger.warning(
+                "Could not save LLM-as-judge report for document %s: %s",
+                document.id, exc,
             )
 
     def persist_extraction(

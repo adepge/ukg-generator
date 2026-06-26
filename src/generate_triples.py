@@ -994,6 +994,12 @@ def match_stopwords(text:str, stopwords: list[str]) -> bool:
     """
     return text.strip().lower() in stopwords
 
+def is_identity_triple(subject: str, object: str) -> bool:
+    """
+    Check if a triple is an identity triple.
+    """
+    return subject == object
+
 def filter_triples(triples: list[Triple], blacklist_sets: tuple[list[str], list[str], list[str], list[str]], stopwords: list[str] = []):
     """
     Filter out triples that match any of the terms in the blacklist with specific rules.
@@ -1019,6 +1025,9 @@ def filter_triples(triples: list[Triple], blacklist_sets: tuple[list[str], list[
             continue
         # Filter out triples with entities or objects that contain the word blacklist terms.
         if match_entity_exact(triple.sub, subject_excl_word) or match_entity_exact(triple.obj, object_excl_word):
+            continue
+        # Filter out identity triples.
+        if is_identity_triple(triple.sub, triple.obj):
             continue
         result.append(triple)
     return result

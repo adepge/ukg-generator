@@ -24,6 +24,7 @@ Options
     --no-span-extraction:   Disable GLiNER entity and relation extraction (use only natural language pattern matching).
     --disable-enrichment:   Disable enrichment of extracted DOI metadata using an external provider (default: False).
     --span-model:           (GLiNER) Hugging Face model for span extraction (default: gliner-relex-large-v0.5).
+    --evaluate:             After generation, score the triples with the LLM-as-judge and write a <name>.eval.json report (default: False).
 
 By default, the blacklists, ontology files, and label file are adapted to the biomedical domain.
 Here is the default structure of the resources/ directory:
@@ -52,13 +53,16 @@ import sys
 import os
 import json
 from pathlib import Path
+from dotenv import load_dotenv
 
 try:
     from src.extraction_module import extract_json_data, post_process_json_data
-    from src.generate_triples import generate_triples
+    from src.generate_triples import generate_triples, load_blacklist_files, build_blacklist_sets
+    from src.evaluation import evaluate_triples, write_report_json
 except ModuleNotFoundError:
     from extraction_module import extract_json_data, post_process_json_data
     from generate_triples import generate_triples, load_blacklist_files, build_blacklist_sets
+    from evaluation import evaluate_triples, write_report_json
 
 
 def main(argv: list[str] | None = None):
@@ -130,6 +134,12 @@ def main(argv: list[str] | None = None):
         "--span-model", type=str,
         default="knowledgator/gliner-relex-large-v0.5",
         help="Hugging Face model for span extraction (default: gliner-relex-large-v0.5).",
+    )
+    parser.add_argument(
+        "--evaluate", action="store_true",
+        help="After generation, score the triples with the LLM-as-judge "
+             "(src/evaluation.py) and write a <name>.eval.json report. "
+             "Requires UKG_JUDGE_API_KEY (see .env.example).",
     )
 
     args = parser.parse_args(argv)
@@ -284,10 +294,44 @@ def main(argv: list[str] | None = None):
             f.write(f"({t.sub}, {t.pred}, {t.obj}, {t.conf})\n")  
     print(f"Text output saved to: {text_output_path}")
 
+    # Save a richer JSON sidecar that retains provenance (source method, section)
+    # so downstream evaluation can report per-source/section breakdowns.
+    output_stem = str(Path(output_path).with_suffix(""))
+    triples_json_path = f"{output_stem}.triples.json"
+    with open(triples_json_path, "w+", encoding="utf-8") as f:
+        json.dump(
+            [
+                {
+                    "sub": t.sub, "pred": t.pred, "obj": t.obj,
+                    "conf": t.conf, "source": t.source, "section": t.section,
+                }
+                for t in triples
+            ],
+            f, indent=2, ensure_ascii=False,
+        )
+    print(f"Triples JSON saved to: {triples_json_path}")
+
     for t in triples[:10]:
         print(f"  {t}")
     if len(triples) > 10:
         print(f"  ... and {len(triples) - 10} more")
+
+    # Optionally run the LLM-as-judge evaluation on the freshly generated triples.
+    if args.evaluate:
+        load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+        eval_output_path = f"{output_stem}.eval.json"
+        print(f"\nEvaluating triples with the LLM-as-judge → {eval_output_path} ...")
+        try:
+            report = evaluate_triples(
+                triples,
+                entity_labels=entity_labels,
+                relation_labels=relation_labels,
+            )
+            write_report_json(report, eval_output_path)
+            print(f"\n{report.summary_text()}\n")
+            print(f"Evaluation report saved to: {eval_output_path}")
+        except (ValueError, ImportError) as exc:
+            print(f"Evaluation skipped: {exc}", file=sys.stderr)
 
 def parse_blacklist_files(filepath: str) -> tuple[list[str], list[str], list[str], list[str]]:
     """

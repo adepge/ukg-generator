@@ -12,8 +12,9 @@ import numpy as np
 import pandas as pd
 from matplotlib.ticker import MaxNLocator
 
-annotated_triples_file = Path("src/evaluation/triples/potential_rf.csv")
-EVALUATION_DIR = Path(__file__).resolve().parent / "triples"
+BASE_DIR = Path(__file__).resolve().parent
+annotated_triples_file = BASE_DIR / "triples" / "potential_rf.csv"
+EVALUATION_DIR = BASE_DIR / "triples"
 
 # Labels for the potential risk factors.
 SUBJECT_LABELS = {

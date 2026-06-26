@@ -76,6 +76,7 @@ nvidia-nvjitlink-cu12==12.8.93
 nvidia-nvshmem-cu12==3.4.5
 nvidia-nvtx-cu12==12.8.90
 onnxruntime==1.23.2
+openai==2.43.0
 packaging==25.0
 pandas==2.3.3
 parso==0.8.5
@@ -96,6 +97,7 @@ pymupdf-layout==1.27.2
 pymupdf4llm==0.2.9
 pyparsing==3.3.1
 python-dateutil==2.9.0.post0
+python-dotenv==1.2.2
 pytz==2025.2
 PyYAML==6.0.3
 pyzmq==27.1.0
